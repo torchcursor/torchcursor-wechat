@@ -143,7 +143,7 @@ process.stdout.write(articleHTML(UI_T));
     s = generate.STYLES["cardnote"]
     opts = {
         "bg": "plain", "accent": "", "brand_color": "", "bg_color": "",
-        "bg_line": "", "page_bg": "none", "page_bg_image": "", "ink": "",
+        "bg_line": "", "page_bg": "#fafaf4", "page_bg_image": "", "ink": "",
         "font_size": 16, "line_height": 1.9, "parts": True, "card": generate.DEFAULT_CARD,
         "title": "", "_title": title, "prefer_plain_h2": False, "_sec": 0,
     }

@@ -51,15 +51,20 @@ check("底纹按钮 3 个", $("segBg").querySelectorAll("button").length === 3);
 check("底色色板 7 个", $("swatches").querySelectorAll("button").length === 7);
 check("预览区已渲染内容", stage.innerHTML.length > 500);
 
-console.log("\n[2] 结构修复（1.1.1）：不包外层容器 + 分节标题不用表格");
-check("不再包外层 section（实测微信粘贴时丢弃最外层容器）",
-  !/^<section style="background-color/.test(stage.innerHTML.trim()),
+console.log("\n[2] 结构（1.2.0）：牺牲壳双层包裹 + 全文无表格");
+check("全文底色双层包裹：外层牺牲壳 + 内层底色层（实测只丢最外层容器）",
+  /^<section>\s*<section style="background-color:#/.test(stage.innerHTML.trim()),
   stage.innerHTML.trim().slice(0, 80));
-check("全文底色只作用于预览容器", (stage.style.backgroundColor || "").length > 0,
+check("预览容器有底色", (stage.style.backgroundColor || "").length > 0,
   stage.style.backgroundColor);
-check("分节标题不再用表格布局（仅头部卡片保留一个表格）",
-  (stage.innerHTML.match(/<table/g) || []).length === 1,
+check("全文不再使用表格（微信会把表格转成带边框的表格组件）",
+  (stage.innerHTML.match(/<table/g) || []).length === 0,
   "表格数=" + (stage.innerHTML.match(/<table/g) || []).length);
+check("头部卡片左右分栏用 inline-block（不出边框，清洗后优雅退化）",
+  stage.innerHTML.indexOf("display:inline-block;width:62%") > -1 &&
+  stage.innerHTML.indexOf("display:inline-block;width:38%") > -1);
+check("全文没有虚线边框（占位框会被当成小方框）",
+  stage.innerHTML.indexOf("dashed") === -1);
 check("编号分节标题为段落堆叠（编号+PART 同段）",
   stage.innerHTML.indexOf(">01&nbsp;<span") > -1);
 check("正文有内容（段落/分节）", stage.innerHTML.indexOf("PART") > -1 && stage.innerHTML.indexOf("<p ") > -1);
@@ -67,35 +72,40 @@ check("正文有内容（段落/分节）", stage.innerHTML.indexOf("PART") > -1
 console.log("\n[3] 点按钮切风格");
 clickByText("segStyle", "熔炉橙");
 check("切到熔炉橙后强调色变了", stage.innerHTML.indexOf("#c2410c") > -1);
-check("熔炉橙不渲染头部卡片", stage.innerHTML.indexOf("border-radius:6px;background-color") === -1 ||
-  stage.innerHTML.indexOf("border:1px dashed") === -1);
+check("熔炉橙不渲染头部卡片",
+  stage.innerHTML.indexOf("border-radius:6px;background-color") === -1);
 clickByText("segStyle", "卡片笔记");
-check("切回卡片笔记后有头部卡片", stage.innerHTML.indexOf("border:1px dashed") > -1);
+check("切回卡片笔记后有头部卡片",
+  stage.innerHTML.indexOf("border-radius:6px;background-color") > -1);
 
 console.log("\n[4] 点按钮切底纹");
 clickByText("segBg", "横线纸");
-const ruled = (stage.innerHTML.match(/padding-bottom:12px;border-bottom:1px solid #e6e3d8/g) || []).length;
-const paras = (stage.innerHTML.match(/margin:16px 0;line-height:1.9;/g) || []).length;
-check("横线纸：每个正文段落都带上细底线", ruled >= 3 && ruled === paras,
-  "底线数=" + ruled + " 段落数=" + paras);
+const ruled = (stage.innerHTML.match(/border-bottom:1px solid #e6e3d8/g) || []).length;
+const ruledBg = (stage.innerHTML.match(/background-color:#fafaf4[^"]*border-bottom:1px solid #e6e3d8/g) || []).length;
+check("横线纸：正文段落带细底线且每条线所在块都有底色（margin 已转 padding 防露白）",
+  ruled >= 3 && ruledBg === ruled,
+  "细线数=" + ruled + " 带底色=" + ruledBg);
 clickByText("segBg", "方格纸");
 check("方格纸：出现分节边框区块", stage.innerHTML.indexOf("border:1px solid #e6e3d8;border-radius:6px") > -1);
 clickByText("segBg", "无底纹");
 check("回到无底纹：正文无段落底线",
   (stage.innerHTML.match(/padding-bottom:12px;border-bottom/g) || []).length === 0);
 
-console.log("\n[5] 点色板换预览底色（不进粘贴内容）");
+console.log("\n[5] 点色板换全文底色（双层包裹随粘贴保留）");
 clickByValue("swatches", "#f2f6fb");
 check("预览底色切成淡蓝 #f2f6fb", (stage.style.backgroundColor || "").indexOf("242, 246, 251") > -1,
   stage.style.backgroundColor);
-check("粘贴内容里没有外层底色包裹",
-  !/^<section style="background-color/.test(stage.innerHTML.trim()));
+check("粘贴内容里底色层换成淡蓝",
+  stage.innerHTML.indexOf('<section style="background-color:#f2f6fb;padding:28px 22px;">') > -1);
 check("色板联动文字标签", $("pageBgLabel").textContent.indexOf("#f2f6fb") > -1,
   $("pageBgLabel").textContent);
 clickByValue("swatches", "none");
 check("选「无」回落到风格默认米白 #fafaf4",
   (stage.style.backgroundColor || "").indexOf("250, 250, 244") > -1,
   stage.style.backgroundColor);
+check("选「无」后粘贴内容不包裹（白底直出）",
+  !/^<section><section/.test(stage.innerHTML.trim()),
+  stage.innerHTML.trim().slice(0, 80));
 check("「无」有可见文字标签", Array.from($("swatches").querySelectorAll("button"))
   .some(b => b.textContent.trim() === "无"));
 

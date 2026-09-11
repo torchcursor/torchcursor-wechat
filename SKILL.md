@@ -3,7 +3,7 @@ name: torchcursor-wechat
 description: Convert Markdown into WeChat Official Account (公众号) ready-to-paste HTML that keeps its layout after pasting — inline-only styles, no <style>/class/id/pseudo-elements, card-and-notecard layouts, numbered sections, highlight underlines, page-tint backgrounds and ruled/grid paper backgrounds; ships a zero-dependency CLI plus a single-file browser studio with one-click style/background buttons. Use when the user wants 公众号排版, 微信排版, Markdown 转微信 HTML, 把文章做成可粘贴到公众号后台的格式, 排版控制台, or needs HTML that survives the WeChat editor's sanitizer (微信公众号粘贴兼容 / 草稿箱 / 排版美化).
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.3.0"
   author: TorchCursor (火把光标)
   language: zh-CN / en
   dependencies: Python 3.8+ (standard library only); studio.html needs no runtime
@@ -21,8 +21,9 @@ agent_created: true
 1. **浏览器复制不会带走 `<head><style>`**。所以可见样式必须逐元素写在 `style` 属性上，不能依赖 class、id、伪元素或父级继承。
 2. **公众号后台会二次清洗 HTML/CSS**。禁用 `<style>`、class、id、`:before/:after`、外链资源、JS、hover、`position:fixed`、渐变、阴影、`background-image`。能用单色、边框、留白表达的，就用它们表达。
 3. **正文不重复标题**。文稿首个 `# 一级标题` 只写入 `<title>` 与文件名，不进入正文；否则发布后会出现两个连续标题。
-4. **不依赖最外层容器承载任何样式**。实测（2026-09-11，1.1.0 版曾试过）编辑器粘贴时会**丢弃最外层容器**——外层 `<section>` 带全文底色的方案不成立。全文按白底设计，彩色背景只用在内部元素上（头部卡片、金句卡、引用块等，这些能保留）。
-5. **布局不用表格**。微信编辑器会把粘贴进来的表格转成自己的表格组件：出现边框、列宽错乱（实测：两列表格的编号和标题被拉开很远）。表格只用于头部卡片的图文并排（实测这一个位置能正常渲染，且补了 `border=0` 属性），分节标题等一律用纯段落堆叠。
+4. **全文底色用「牺牲壳」双层包裹 + 逐块防断裂**。实测（2026-09-11 三轮真机）机制：粘贴时编辑器**只丢弃最外层那一个容器**，第二层及更深的 section 连同样式原样保留（头部卡片的底色就是这么活下来的）。所以最外层放不带样式的牺牲壳 `<section>`，真正的底色层放第二层；`--page-bg none` 可关闭包裹。
+5. **每个内容块都自带底色，间距一律用 padding 不用 margin**。实测（2026-09-11 第四轮真机）：底色层进微信后会被摊到每个文字块上，块与块之间的 **margin 不属于任何块、会露白**；margin 不吃背景，padding 吃。生成器用 `blockify` 把垂直 margin 折半转成 padding 并给每个块补底色，保证全文无白缝。
+6. **布局一律不用表格**。微信编辑器会把粘贴进来的表格转成自己的表格组件：出现边框、列宽错乱（实测：标题、图片全被框上方框）。图文并排用 `display:inline-block` 的并列 `<section>`（display 被清洗也只是退化为上下堆叠）；分节标题用纯段落堆叠。图片占位不带任何边框（虚线框粘过去会被当成小方框）。
 
 **为什么要自己写解析器和渲染器，而不是手写 HTML**：微信清洗规则是硬约束，靠人工每次注意必然出错；把规则写进代码 + 自检脚本，才能保证每次产出都合规。本技能自带 `scripts/generate.py`（零第三方依赖）与 `--check` 自检。
 
@@ -52,10 +53,10 @@ python3 scripts/generate.py article.md --style cardnote
 # 全部风格 + 风格总览页
 python3 scripts/generate.py article.md --style all --bg plain
 
-# 全文底色（实验性：实测微信编辑器粘贴时丢弃最外层容器，底色大概率带不进去）
-python3 scripts/generate.py article.md --style cardnote --page-bg "#fafaf4"
+# 全文底色：默认 auto（双层牺牲壳包裹，随粘贴保留）
+python3 scripts/generate.py article.md --style cardnote
 
-# 默认不包裹（推荐：全文按白底设计）
+# 关闭包裹（白底直出）
 python3 scripts/generate.py article.md --style cardnote --page-bg none
 
 # 横线纸 / 方格纸底纹
@@ -93,13 +94,13 @@ python3 scripts/make_bg_tile.py --pattern grid --size 40 --theme cardnote --out 
 
 | 层 | 做法 | 能否粘贴带入 | 说明 |
 |---|---|---|---|
-| **全文底色** | 无可靠手段 | **不能** | 实测编辑器粘贴时丢弃最外层容器（1.1.0 的外层 section 方案不成立）；后台也没有全文背景设置入口（2026-09-11 实测）。**全文按白底设计** |
+| **全文底色** | 牺牲壳双层包裹（底色在第二层 section） | 能（机制推导，持续真机复核） | 编辑器粘贴时只丢最外层容器；第二层底色随头部卡片一同存活。`--page-bg none` 关闭 |
 | **结构底纹** | 用行内边框模拟：`ruled` 每段一条细底线；`grid` 分节区块带边框 + 内部段落底线 | 能 | 微信只清洗背景图和复杂 CSS，边框保留 |
 | **画面底纹** | 真正的方格/横线纸底图，用 `scripts/make_bg_tile.py` 生成可平铺 PNG | 不能 | `make_bg_tile.py` 保留给支持自定义背景上传的第三方编辑器；微信公众号后台没有该入口 |
 
-**不要把 `background-image` 当作可靠的粘贴手段**——它一定被清洗。也不要试图用外层容器承载全文底色——最外层容器会被丢弃。
+**不要把 `background-image` 当作可靠的粘贴手段**——它一定被清洗。也不要把样式写在最外层容器上——最外层容器会被丢弃（所以底色必须放在第二层）。
 
-**哪些彩色背景能保留**：内部元素的背景可以——头部卡片、黑底导语条、金句卡、引用块，实测都保留。全文底色不行。
+**哪些彩色背景能保留**：第二层及更深的元素背景都可以——全文底色层、头部卡片、黑底导语条、金句卡、引用块。
 
 细节与已知回落项见 `references/wechat-limits.md`。
 
@@ -109,7 +110,7 @@ python3 scripts/make_bg_tile.py --pattern grid --size 40 --theme cardnote --out 
 |---|---|
 | `--style` | `cardnote` / `graphite` / `forge` / `all` |
 | `--bg` | `plain` / `ruled` / `grid` |
-| `--page-bg` | 全文底色：`none`（默认，不包裹）/ `auto` / `#色值`。实验性——实测微信编辑器粘贴时丢弃最外层容器，底色大概率带不进去 |
+| `--page-bg` | 全文底色：`auto`（默认，取风格底色）/ `#色值` / `none`（不包裹）。双层牺牲壳包裹，随粘贴保留 |
 | `--page-bg-image` | 全文背景图 URL（可平铺）。微信必清洗，多数后台无背景上传入口，一般无用 |
 | `--accent` `--brand-color` `--bg-color` `--bg-line` `--ink` | 强调色 / 品牌词色 / 页面底色 / 底纹线色 / 金句卡底色 |
 | `--font-size` `--line-height` | 正文字号（默认 16）、行高（默认 1.9） |
@@ -124,7 +125,7 @@ CLI 优先于配置文件，配置文件优先于内置默认值。完整参数�
 | 写法 | 结果 |
 |---|---|
 | 首个 `# 标题` | 只进 `<title>`，不进正文 |
-| `## 标题` | 分节；开启 `parts` 时自动编号 `01/02/03…` 并渲染为两列表格分节头 |
+| `## 标题` | 分节；开启 `parts` 时自动编号 `01/02/03…` 并渲染为段落堆叠分节头（不用表格） |
 | `### 标题` | 三级标题 |
 | `**粗体**` / `` `代码` `` | 加粗 / 行内代码 |
 | `==文字==` | 关键强调（cardnote 为橙黄粗下划线） |
@@ -151,8 +152,9 @@ python3 scripts/generate.py article.md --style all --check
 
 | 现象 | 原因与处理 |
 |---|---|
-| 粘贴后全文底色丢成白色 | 这是预期行为：编辑器粘贴时丢弃最外层容器，全文底色没有可靠的粘贴手段。正文按白底设计即可；彩色背景只用于卡片/金句卡/引用块等内部元素 |
-| 粘贴后编号分节变成带边框的表格、编号和标题离得很远 | 旧版本用表格做分节布局会触发此问题；用 1.1.1+（纯段落堆叠）重新生成 |
+| 粘贴后文字有底色但段落间隙是白色 | 底色层进了但块间 margin 露白（margin 不吃背景）。1.3.0 起 `blockify` 已把 margin 转 padding 并逐块补底色；用 1.3.0+ 重新生成 |
+| 粘贴后全文底色丢成白色 | 检查粘贴内容是否是双层包裹（外层牺牲壳 + 内层底色层）。1.2.0 起默认双层包裹；若确认包裹仍在仍丢底色，说明微信清洗规则变了——用 `--page-bg none` 退回白底方案，并把现象记录进 `references/wechat-limits.md` |
+| 粘贴后标题/图片出现小方框 | 旧版本用表格做布局会触发此问题（微信把表格转成带边框的表格组件）；用 1.2.0+（inline-block 分栏、无表格）重新生成 |
 | 粘贴后连正文都变纯文字了 | 内容被 `<div>` 包住了——编辑器白名单没有 `div`，整段会被吞。本技能一律用 `<section>`，不要手改成 `div` |
 | 底纹没出现 | 用的是画面底纹而非结构底纹；改用 `--bg ruled/grid`，或生成 PNG 去后台设置 |
 | 出现两个标题 | 文稿里的首个一级标题被渲染进了正文；确认用的是本技能的生成器 |

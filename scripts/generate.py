@@ -7,14 +7,20 @@ torchcursor-wechat · 把 Markdown 转成可直接粘贴进微信公众号后台
   浏览器 Cmd+A / Cmd+C 不会带走 <head><style>，公众号后台还会二次清洗 HTML 和 CSS。
   所以：可见样式必须逐元素展开到 style 属性；禁用 <style>、class、id、伪元素、
   外链资源、JS、hover、position:fixed；不使用只靠父级继承才成立的样式。
-  表格在微信里是稳定的图文并排方案，因此用于头部卡片与编号分节。
+  表格在微信里会被转成带边框的表格组件，因此全文禁用 <table>；
+  图文并排用 display:inline-block 的并列 <section>（被清洗时优雅退化为堆叠）。
 
-全文底色为什么必须由外层 <section> 承载：
-  公众号编辑器底层是 ProseMirror，白名单里有 <section>、没有 <body> 和 <div>。
-  只写在 <body> 上的底色不在复制范围内，粘进去必然消失；用 <div> 包内容更糟——
-  div 不在白名单里，连同背景会被整段吞掉，只剩文字。
-  所以整篇内容统一包在一个外层 <section> 里，由它承载 background-color。
-  这个外层只承载背景，不承载任何文字样式，因此即使被平台清洗掉也不影响正文可读性。
+全文底色为什么用「牺牲壳」双层包裹（v1.2.0）：
+  公众号编辑器底层是 ProseMirror，白名单里有 <section>、没有 <body> 和 <div>，
+  body 上的底色不在复制范围内；div 不在白名单里会连背景整段吞掉。
+  实测（2026-09-11 三轮真机验证）得出机制：粘贴时编辑器只丢弃/解包**最外层那一个**
+  容器，位于第二层及更深的 section 连同样式会原样保留（1.1.1 里头部卡片的底色
+  就是这么活下来的，1.1.0 里被丢弃的只是最外层那一个包裹）。
+  所以：最外层放一个不带任何样式的牺牲壳 <section>，真正的底色层放在第二层——
+  牺牲壳被吃掉后，底色层升为顶层节点，与头部卡片同级，底色得以保留。
+  布局禁用 <table>：微信会把粘贴进来的表格转成自带边框的表格组件（实测标题、
+  图片全被框上方框），左右分栏改用 display:inline-block 的并列 <section>——
+  即使 display 被清洗也只是退化为上下堆叠，绝不会出现边框。
 
 依赖：仅 Python 3.8+ 标准库。
 """
@@ -25,7 +31,7 @@ import os
 import re
 import sys
 
-VERSION = "1.1.1"
+VERSION = "1.3.0"
 
 SANS = ("-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',"
         "'Hiragino Sans GB','Microsoft YaHei',sans-serif")
@@ -350,53 +356,128 @@ def _app(style, extra):
     return (style.rstrip(";") + ";" + extra) if extra else style
 
 
-def part_header(num, sec_title, s, accent, muted, tight=False):
+def _px_half(v):
+    """'46px' → 23，'0' → 0。非 px 值按 0 处理（本项目 margin 全是 px 或 0）。"""
+    v = v.strip()
+    m = re.fullmatch(r"([\d.]+)px", v)
+    return int(round(float(m.group(1)) / 2)) if m else 0
+
+
+def _px_int(v):
+    v = v.strip()
+    m = re.fullmatch(r"([\d.]+)px", v)
+    return int(round(float(m.group(1)))) if m else 0
+
+
+def blockify(style, bg):
+    """全文底色防断裂（v1.3.0 核心）。
+
+    真机实测：底色层进微信后会被摊到每个文字块上，但块与块之间的 margin
+    （外边距）不属于任何块——间隙露白。margin 不吃元素背景，padding 吃。
+    所以：把垂直 margin 折半转成 padding（折半是因为相邻块的 padding 会
+    相加，而原来的 margin 会塌缩），并给没有自己底色的块补上全文底色。
+    已有 background-color 的元素（引用块/金句卡/forge 标题条）保留原色。
+    """
+    has_bg = "background-color" in style
+    margin, padding = None, None
+    keep = []
+    for d in style.split(";"):
+        d = d.strip()
+        if not d:
+            continue
+        k, _, v = d.partition(":")
+        k, v = k.strip(), v.strip()
+        if k == "margin":
+            margin = v
+        elif k == "padding":
+            padding = v
+        else:
+            keep.append("%s:%s" % (k, v))
+    mt = mb = 0
+    if margin:
+        t = margin.split()
+        if len(t) == 1:                       # 上下左右
+            mt = mb = _px_half(t[0])
+        elif len(t) == 2:                     # 上下 | 左右
+            mt = mb = _px_half(t[0])
+        elif len(t) == 3:                     # 上 | 左右 | 下
+            mt, mb = _px_half(t[0]), _px_half(t[2])
+        else:                                 # 上 右 下 左
+            mt, mb = _px_half(t[0]), _px_half(t[2])
+    pt = pb = pl = pr = 0
+    if padding:
+        t = padding.split()
+        if len(t) == 1:
+            pt = pb = pl = pr = _px_int(t[0])
+        elif len(t) == 2:
+            pt = pb = _px_int(t[0])
+            pl = pr = _px_int(t[1])
+        elif len(t) == 3:
+            pt, pl, pb = _px_int(t[0]), _px_int(t[1]), _px_int(t[2])
+        else:
+            pt, pr, pb, pl = (_px_int(x) for x in t[:4])
+    out = ["margin:0",
+           "padding:%dpx %dpx %dpx %dpx" % (mt + pt, pr, mb + pb, pl)]
+    if not has_bg:
+        out.append("background-color:%s" % bg)
+    out += keep
+    return ";".join(out) + ";"
+
+
+def part_header(num, sec_title, s, accent, muted, bg, tight=False):
     """编号分节：编号行 + 标题行 + NOTES 行，纯段落堆叠。
 
     不用表格布局：微信编辑器会把粘贴进来的表格转成自己的表格组件，
     出现边框、列宽错乱（实测 2026-09-11：编号和标题被拉开很远、带边框）。
     普通 <p> 是微信处理得最稳的元素，堆叠布局牺牲左右两列观感换取粘贴保真。
+    每行经 blockify 处理：margin 折半转 padding + 补全文底色（防间隙露白）。
     """
     mt, mb = ("22px", "12px") if tight else ("48px", "18px")
     return [
-        '  <p style="font-family:%s;font-size:24px;line-height:1.2;font-weight:850;'
-        'color:#1a1a1a;margin:%s 0 0;">%s&nbsp;<span style="font-size:10px;'
+        '  <p style="%s">%s&nbsp;<span style="font-size:10px;'
         'font-weight:600;color:%s;letter-spacing:2px;">PART</span></p>'
-        % (SANS, mt, num, muted),
-        '  <p style="font-family:%s;font-size:21px;line-height:1.5;font-weight:850;'
-        'color:#1a1a1a;margin:8px 0 0;">%s</p>' % (SANS, sec_title),
-        '  <p style="font-family:%s;font-size:10px;line-height:1.5;color:%s;'
-        'letter-spacing:3px;margin:4px 0 %s;">NOTES</p>' % (SANS, muted, mb),
+        % (blockify('font-family:%s;font-size:24px;line-height:1.2;font-weight:850;'
+                    'color:#1a1a1a;margin:%s 0 0;' % (SANS, mt), bg),
+           num, muted),
+        '  <p style="%s">%s</p>'
+        % (blockify('font-family:%s;font-size:21px;line-height:1.5;font-weight:850;'
+                    'color:#1a1a1a;margin:8px 0 0;' % SANS, bg), sec_title),
+        '  <p style="%s">NOTES</p>'
+        % (blockify('font-family:%s;font-size:10px;line-height:1.5;color:%s;'
+                    'letter-spacing:3px;margin:4px 0 %s;' % (SANS, muted, mb), bg),),
     ]
 
 
 def head_card(s, opts, accent, brand, muted, border):
-    """头部方框卡片：眉题 → 左标题右图 → 落款 → 黑底导语条（贴边框内侧贴底）。"""
+    """头部方框卡片：眉题 → 左标题右图 → 落款 → 黑底导语条（贴边框内侧贴底）。
+
+    左右分栏不用 <table>：微信会把粘贴进来的表格转成自带边框的表格组件
+    （实测 2026-09-11：标题、图片全被框上方框）。改用两个 display:inline-block
+    的并列 <section>——display 被清洗也只是退化为上下堆叠，不会出边框。
+    两个分栏必须写在同一行（之间不能有换行空白），否则 62%+38% 加上空白节点
+    会被挤到两行。
+    """
     ink = opts["ink"]
     card = opts["card"]
     title_txt = opts["title"] or opts["_title"] or "文章标题"
     title_html = inline(title_txt, s, accent, brand)
     p = []
-    p.append('<section style="margin:0 0 26px;border:1px solid %s;border-radius:6px;'
+    p.append('<section style="margin:0;border:1px solid %s;border-radius:6px;'
              'background-color:%s;padding:0;">' % (border, opts.get("_page_bg") or s["bg"]))
     if card["eyebrow"]:
         p.append('  <p style="font-family:%s;font-size:11px;line-height:1.6;color:%s;'
                  'letter-spacing:3px;margin:0;padding:18px 18px 0;">%s</p>'
                  % (SANS, muted, _html.escape(card["eyebrow"])))
-    p.append('  <table role="presentation" border="0" cellspacing="0" cellpadding="0" '
-             'style="width:100%;border-collapse:collapse;">')
-    p.append('    <tbody><tr>')
-    p.append('      <td style="width:64%;vertical-align:middle;padding:16px 14px 0 18px;">')
-    p.append('        <p style="font-family:%s;font-size:24px;line-height:1.45;font-weight:850;'
-             'color:#1a1a1a;margin:0;">%s</p>' % (SANS, title_html))
-    p.append('      </td>')
-    p.append('      <td style="width:36%;vertical-align:middle;padding:16px 18px 0 0;">')
-    p.append('        <p style="font-family:%s;font-size:12px;line-height:1.7;color:%s;'
-             'border:1px dashed %s;border-radius:8px;padding:20px 8px;text-align:center;'
-             'margin:0;">%s</p>' % (SANS, muted, border, _html.escape(card["img"])))
-    p.append('      </td>')
-    p.append('    </tr></tbody>')
-    p.append('  </table>')
+    p.append(
+        '  <section style="display:inline-block;width:62%%;vertical-align:middle;">'
+        '<p style="font-family:%s;font-size:24px;line-height:1.45;font-weight:850;'
+        'color:#1a1a1a;margin:0;padding:16px 14px 0 18px;">%s</p>'
+        '</section>'
+        '<section style="display:inline-block;width:38%%;vertical-align:middle;">'
+        '<p style="font-family:%s;font-size:12px;line-height:1.7;color:%s;'
+        'text-align:center;margin:0;padding:16px 18px 0 0;">%s</p>'
+        '</section>'
+        % (SANS, title_html, SANS, muted, _html.escape(card["img"])))
     if card["footer"]:
         p.append('  <p style="font-family:%s;font-size:11px;line-height:1.6;color:%s;'
                  'letter-spacing:2px;margin:0;padding:14px 18px 16px;">%s</p>'
@@ -412,6 +493,7 @@ def head_card(s, opts, accent, brand, muted, border):
 
 def render_block(kind, payload, s, opts, accent, brand, muted, line, para_extra):
     fs, lh = opts["font_size"], opts["line_height"]
+    bg = opts["_page_bg"]          # 全文底色，blockify 给每个块补上（防间隙露白）
 
     if kind == "h2":
         if opts["parts"] and payload and not opts["prefer_plain_h2"]:
@@ -421,48 +503,54 @@ def render_block(kind, payload, s, opts, accent, brand, muted, line, para_extra)
             else:
                 opts["_sec"] = opts.get("_sec", 0) + 1
                 num, sec = "%02d" % opts["_sec"], payload
-            return part_header(num, _html.escape(sec), s, accent, muted,
+            return part_header(num, _html.escape(sec), s, accent, muted, bg,
                                tight=(opts["bg"] == "grid"))
         return ['  <h2 style="%s">%s</h2>'
-                % (_st(s, "h2", accent, brand, fs, lh), _html.escape(payload))]
+                % (blockify(_st(s, "h2", accent, brand, fs, lh), bg),
+                   _html.escape(payload))]
 
     if kind == "h3":
         return ['  <h3 style="%s">%s</h3>'
-                % (_st(s, "h3", accent, brand, fs, lh), _html.escape(payload))]
+                % (blockify(_st(s, "h3", accent, brand, fs, lh), bg),
+                   _html.escape(payload))]
 
     if kind == "p":
         return ['  <p style="%s">%s</p>'
-                % (_app(_st(s, "p", accent, brand, fs, lh), para_extra),
+                % (blockify(_app(_st(s, "p", accent, brand, fs, lh), para_extra), bg),
                    inline(payload, s, accent, brand))]
 
     if kind == "quote":
         return ['  <blockquote style="%s">%s</blockquote>'
-                % (_st(s, "blockquote", accent, brand, fs, lh),
+                % (blockify(_st(s, "blockquote", accent, brand, fs, lh), bg),
                    inline(payload, s, accent, brand))]
 
     if kind == "callout":
         return ['  <p style="%s">%s</p>'
-                % (_st(s, "callout", accent, brand, fs, lh),
+                % (blockify(_st(s, "callout", accent, brand, fs, lh), bg),
                    inline(payload, s, accent, brand))]
 
     if kind == "hr":
-        return ['  <hr style="%s">' % _st(s, "hr", accent, brand, fs, lh)]
+        return ['  <hr style="%s">' % blockify(_st(s, "hr", accent, brand, fs, lh), bg)]
 
     if kind == "imgph":
+        # 图片占位不带边框：参考成品里图片是没有框的，虚线框粘过去会被当成小方框
         return [
-            '  <p style="font-family:%s;font-size:12px;line-height:1.7;color:%s;'
-            'border:1px dashed %s;border-radius:6px;padding:36px 10px;text-align:center;'
-            'margin:28px 0 0;">[ 图片：%s ]</p>' % (SANS, muted, line, _html.escape(payload)),
+            '  <p style="%s">[ 图片：%s ]</p>'
+            % (blockify('font-family:%s;font-size:12px;line-height:1.7;color:%s;'
+                        'text-align:center;margin:28px 0;' % (SANS, muted), bg),
+               _html.escape(payload)),
         ]
 
     if kind == "figcaption":
-        return ['  <p style="font-family:%s;font-size:11px;line-height:1.6;color:%s;'
-                'letter-spacing:2px;text-align:center;margin:10px 0 28px;">%s</p>'
-                % (SANS, muted, inline(payload, s, accent, brand))]
+        return ['  <p style="%s">%s</p>'
+                % (blockify('font-family:%s;font-size:11px;line-height:1.6;color:%s;'
+                            'letter-spacing:2px;text-align:center;margin:10px 0 28px;'
+                            % (SANS, muted), bg),
+                   inline(payload, s, accent, brand))]
 
     if kind in ("ul", "ol"):
         tag = kind
-        out = ['  <%s style="%s">' % (tag, _st(s, tag, accent, brand, fs, lh))]
+        out = ['  <%s style="%s">' % (tag, blockify(_st(s, tag, accent, brand, fs, lh), bg))]
         for item in payload:
             out.append('    <li style="%s">%s</li>'
                        % (_st(s, "li", accent, brand, fs, lh),
@@ -472,7 +560,7 @@ def render_block(kind, payload, s, opts, accent, brand, muted, line, para_extra)
 
     if kind == "li_flat":
         return ['  <p style="%s">%s</p>'
-                % (_app(_st(s, "p", accent, brand, fs, lh), para_extra),
+                % (blockify(_app(_st(s, "p", accent, brand, fs, lh), para_extra), bg),
                    inline(payload, s, accent, brand))]
 
     return []
@@ -502,10 +590,12 @@ def render(style_id, s, blocks, opts):
     parts.append('<body style="max-width:740px;margin:0 auto;padding:28px 22px;'
                  'background-color:%s;font-family:%s;">' % (opts["bg_color"] or s["bg"], SANS))
 
-    # 全文底色：默认不包裹（2026-09-11 实测：粘贴时最外层容器会被编辑器丢弃，
-    # 外层 section 的底色带不进去，包了等于没包）。--page-bg 显式指定时仍输出，
-    # 供支持保留外层容器的编辑器使用，属实验性能力。
-    page_bg = opts.get("page_bg", "none")
+    # 全文底色：双层「牺牲壳」包裹（v1.2.0）。
+    # 实测机制：粘贴时编辑器只丢弃最外层那一个容器；第二层及更深的 section
+    # 连同样式原样保留（头部卡片的底色就是这么活下来的）。
+    # 所以最外层放不带样式的牺牲壳，真正的底色层放第二层——壳被吃掉后，
+    # 底色层升为顶层节点，底色得以保留。--page-bg none 可关闭包裹。
+    page_bg = opts.get("page_bg", "auto")
     if page_bg == "auto":
         page_bg = opts["bg_color"] or s["bg"]
     if not page_bg or str(page_bg).lower() == "none":
@@ -515,11 +605,12 @@ def render(style_id, s, blocks, opts):
         opts["_page_bg"] = page_bg
     wrap_open = False
     if page_bg:
-        wrap_style = "background-color:%s;" % page_bg
+        wrap_style = "background-color:%s;padding:28px 22px;" % page_bg
         if opts.get("page_bg_image"):
             wrap_style += ("background-image:url('%s');background-repeat:repeat;"
                            "background-position:top left;" % opts["page_bg_image"])
-        parts.append('<section style="%s">' % wrap_style)
+        parts.append("<section>")              # 牺牲壳：粘贴时会被编辑器丢弃
+        parts.append("<section style=\"%s\">" % wrap_style)
         wrap_open = True
 
     if opts["card"] and s.get("marks"):
@@ -539,14 +630,18 @@ def render(style_id, s, blocks, opts):
     for group in groups:
         wrap = opts["bg"] == "grid"
         if wrap:
-            parts.append('<section style="border:1px solid %s;border-radius:6px;'
-                         'padding:2px 16px 14px;margin:26px 0;">' % line)
+            # grid 分节边框同样做防断裂处理：margin 转 padding + 补底色
+            parts.append('<section style="%s">'
+                         % blockify('border:1px solid %s;border-radius:6px;'
+                                    'padding:2px 16px 14px;margin:26px 0;' % line,
+                                    opts["_page_bg"]))
         for kind, payload in group:
             parts += render_block(kind, payload, s, opts, accent, brand, muted, line, para_extra)
         if wrap:
             parts.append('</section>')
 
     if wrap_open:
+        parts.append('</section>')
         parts.append('</section>')
 
     parts += ["</body>", "</html>", ""]
@@ -604,7 +699,7 @@ def build_opts(args):
         "brand_color": "",
         "bg_color": "",
         "bg_line": "",
-        "page_bg": "none",
+        "page_bg": "auto",
         "page_bg_image": "",
         "ink": "",
         "font_size": 16,
@@ -662,9 +757,9 @@ def main(argv=None):
     ap.add_argument("--bg-color", dest="bg_color", help="页面底色，如 #fafaf4")
     ap.add_argument("--bg-line", dest="bg_line", help="底纹线色，如 #e6e3d8")
     ap.add_argument("--page-bg", dest="page_bg",
-                    help="全文底色：none（默认，不包裹）/ auto / #色值。"
-                         "注意：实测微信编辑器粘贴时会丢弃最外层容器，此底色大概率带不进去，"
-                         "仅对支持保留外层容器的编辑器有效（实验性）")
+                    help="全文底色：auto（默认，取风格底色）/ #色值 / none（不包裹）。"
+                         "v1.2.0 起用双层牺牲壳包裹：外层空壳被编辑器丢弃，"
+                         "第二层底色保留（机制依据 2026-09-11 三轮真机实测）")
     ap.add_argument("--page-bg-image", dest="page_bg_image",
                     help="全文背景图 URL（可平铺，实验性）。微信公众号会清洗 background-image，"
                          "且多数后台没有「背景上传」入口，此参数一般无用")

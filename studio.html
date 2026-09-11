@@ -164,8 +164,9 @@
     </div>
     <p class="notes">
       <b>粘贴步骤</b>：点「复制到公众号」→ 打开公众号后台编辑器 → <b>Cmd+V</b> 粘贴。<br>
-      全文底色由外层 <code>&lt;section&gt;</code> 承载，能跟着粘进去；<code>&lt;body&gt;</code> 上的底色不在复制范围内，
-      所以早期版本粘过去是白底。<br>
+      全文底色用<b>双层包裹</b>：最外层是牺牲壳（编辑器粘贴时只丢弃最外层那一个容器），
+      真正带底色的 <code>&lt;section&gt;</code> 放在第二层，跟头部卡片一样能活着进去；
+      每个段落还单独补了底色、间距走 padding——块与块的间隙不会露白。<br>
       若复制失败，点「仅选中」把正文选中，再自己按 <b>Cmd+C</b>——效果一样。
     </p>
   </main>
@@ -432,32 +433,71 @@ function app(style, extra) {
   return extra ? style.replace(/;+$/, "") + ";" + extra : style;
 }
 
-function partHeader(num, secTitle, s, tk, tight) {
-  /* 纯段落堆叠，不用表格：微信编辑器会把布局表格转成带边框的表格组件（实测）。 */
+function pxHalf(v) {
+  var m = /^([\d.]+)px$/.exec(v.trim());
+  return m ? Math.round(parseFloat(m[1]) / 2) : 0;
+}
+function pxInt(v) {
+  var m = /^([\d.]+)px$/.exec(v.trim());
+  return m ? Math.round(parseFloat(m[1])) : 0;
+}
+/* 全文底色防断裂（v1.3.0 核心）：底色层进微信后被摊到每个文字块上，
+   块与块之间的 margin 不属于任何块——间隙露白。margin 不吃背景，padding 吃。
+   所以：垂直 margin 折半转 padding（相邻块 padding 相加、原 margin 塌缩），
+   并给没有自己底色的块补上全文底色；已有 background-color 的保留原色。 */
+function blockify(style, bg) {
+  var hasBg = style.indexOf("background-color") > -1;
+  var margin = null, padding = null, keep = [];
+  style.split(";").forEach(function (d) {
+    d = d.trim();
+    if (!d) return;
+    var i = d.indexOf(":");
+    var k = d.slice(0, i).trim(), v = d.slice(i + 1).trim();
+    if (k === "margin") margin = v;
+    else if (k === "padding") padding = v;
+    else keep.push(k + ":" + v);
+  });
+  var mt = 0, mb = 0;
+  if (margin) {
+    var t = margin.split(/\s+/);
+    if (t.length === 1) { mt = mb = pxHalf(t[0]); }
+    else if (t.length === 2) { mt = mb = pxHalf(t[0]); }
+    else if (t.length === 3) { mt = pxHalf(t[0]); mb = pxHalf(t[2]); }
+    else { mt = pxHalf(t[0]); mb = pxHalf(t[2]); }
+  }
+  var pt = 0, pb = 0, pl = 0, pr = 0;
+  if (padding) {
+    var q = padding.split(/\s+/).map(pxInt);
+    if (q.length === 1) { pt = pb = pl = pr = q[0]; }
+    else if (q.length === 2) { pt = pb = q[0]; pl = pr = q[1]; }
+    else if (q.length === 3) { pt = q[0]; pl = pr = q[1]; pb = q[2]; }
+    else { pt = q[0]; pr = q[1]; pb = q[2]; pl = q[3]; }
+  }
+  var out = ["margin:0", "padding:" + (mt + pt) + "px " + pr + "px " + (mb + pb) + "px " + pl + "px"];
+  if (!hasBg) out.push("background-color:" + bg);
+  return out.concat(keep).join(";") + ";";
+}
+
+function partHeader(num, secTitle, s, tk, bg, tight) {
+  /* 纯段落堆叠，不用表格：微信编辑器会把布局表格转成带边框的表格组件（实测）。
+     每行经 blockify：margin 折半转 padding + 补全文底色（防间隙露白）。 */
   var mt = tight ? "22px" : "48px", mb = tight ? "12px" : "18px";
   return [
-    '  <p style="font-family:' + SANS + ';font-size:24px;line-height:1.2;font-weight:850;color:#1a1a1a;margin:' + mt + ' 0 0;">' + num + '&nbsp;<span style="font-size:10px;font-weight:600;color:' + s.muted + ';letter-spacing:2px;">PART</span></p>',
-    '  <p style="font-family:' + SANS + ';font-size:21px;line-height:1.5;font-weight:850;color:#1a1a1a;margin:8px 0 0;">' + secTitle + '</p>',
-    '  <p style="font-family:' + SANS + ';font-size:10px;line-height:1.5;color:' + s.muted + ';letter-spacing:3px;margin:4px 0 ' + mb + ';">NOTES</p>'
+    '  <p style="' + blockify('font-family:' + SANS + ';font-size:24px;line-height:1.2;font-weight:850;color:#1a1a1a;margin:' + mt + ' 0 0;', bg) + '">' + num + '&nbsp;<span style="font-size:10px;font-weight:600;color:' + s.muted + ';letter-spacing:2px;">PART</span></p>',
+    '  <p style="' + blockify('font-family:' + SANS + ';font-size:21px;line-height:1.5;font-weight:850;color:#1a1a1a;margin:8px 0 0;', bg) + '">' + secTitle + '</p>',
+    '  <p style="' + blockify('font-family:' + SANS + ';font-size:10px;line-height:1.5;color:' + s.muted + ';letter-spacing:3px;margin:4px 0 ' + mb + ';', bg) + '">NOTES</p>'
   ];
 }
 
 function headCard(s, o, tk) {
+  /* 左右分栏不用 <table>：微信会把粘贴进来的表格转成带边框的表格组件（实测）。
+     两个 inline-block 分栏必须写在同一行，避免空白节点把 62%+38% 挤成两行。 */
   var card = o.cardCfg, out = [];
-  out.push('<section style="margin:0 0 26px;border:1px solid ' + s.border + ';border-radius:6px;background-color:' + o.pageBgColor + ';padding:0;">');
+  out.push('<section style="margin:0;border:1px solid ' + s.border + ';border-radius:6px;background-color:' + o.pageBgColor + ';padding:0;">');
   if (card.eyebrow) {
     out.push('  <p style="font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:3px;margin:0;padding:18px 18px 0;">' + esc(card.eyebrow) + '</p>');
   }
-  out.push('  <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">');
-  out.push('    <tbody><tr>');
-  out.push('      <td style="width:64%;vertical-align:middle;padding:16px 14px 0 18px;">');
-  out.push('        <p style="font-family:' + SANS + ';font-size:24px;line-height:1.45;font-weight:850;color:#1a1a1a;margin:0;">' + inline(o.title, s, tk, o) + '</p>');
-  out.push('      </td>');
-  out.push('      <td style="width:36%;vertical-align:middle;padding:16px 18px 0 0;">');
-  out.push('        <p style="font-family:' + SANS + ';font-size:12px;line-height:1.7;color:' + s.muted + ';border:1px dashed ' + s.border + ';border-radius:8px;padding:20px 8px;text-align:center;margin:0;">' + esc(card.img) + '</p>');
-  out.push('      </td>');
-  out.push('    </tr></tbody>');
-  out.push('  </table>');
+  out.push('  <section style="display:inline-block;width:62%;vertical-align:middle;"><p style="font-family:' + SANS + ';font-size:24px;line-height:1.45;font-weight:850;color:#1a1a1a;margin:0;padding:16px 14px 0 18px;">' + inline(o.title, s, tk, o) + '</p></section><section style="display:inline-block;width:38%;vertical-align:middle;"><p style="font-family:' + SANS + ';font-size:12px;line-height:1.7;color:' + s.muted + ';text-align:center;margin:0;padding:16px 18px 0 0;">' + esc(card.img) + '</p></section>');
   if (card.footer) {
     out.push('  <p style="font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:2px;margin:0;padding:14px 18px 16px;">' + esc(card.footer) + '</p>');
   }
@@ -470,39 +510,41 @@ function headCard(s, o, tk) {
 
 function renderBlock(kind, payload, s, o, tk, paraExtra, secRef) {
   var fs = o.fontSize, lh = o.lineHeight;
+  var bg = o.pageBgColor;   /* 全文底色，blockify 给每个块补上（防间隙露白） */
 
   if (kind === "h2") {
     if (o.parts && payload && !o.plainH2) {
       var m = payload.match(/^(\d+)\s*[.、|｜]?\s*(.*)$/), num, sec;
       if (m) { num = m[1]; sec = m[2]; }
       else { secRef.n++; num = (secRef.n < 10 ? "0" : "") + secRef.n; sec = payload; }
-      return partHeader(num, esc(sec), s, tk, o.bg === "grid");
+      return partHeader(num, esc(sec), s, tk, bg, o.bg === "grid");
     }
-    return ['  <h2 style="' + st(s, "h2", tk, fs, lh) + '">' + esc(payload) + '</h2>'];
+    return ['  <h2 style="' + blockify(st(s, "h2", tk, fs, lh), bg) + '">' + esc(payload) + '</h2>'];
   }
   if (kind === "h3") {
-    return ['  <h3 style="' + st(s, "h3", tk, fs, lh) + '">' + esc(payload) + '</h3>'];
+    return ['  <h3 style="' + blockify(st(s, "h3", tk, fs, lh), bg) + '">' + esc(payload) + '</h3>'];
   }
   if (kind === "p" || kind === "li_flat") {
-    return ['  <p style="' + app(st(s, "p", tk, fs, lh), paraExtra) + '">' + inline(payload, s, tk, o) + '</p>'];
+    return ['  <p style="' + blockify(app(st(s, "p", tk, fs, lh), paraExtra), bg) + '">' + inline(payload, s, tk, o) + '</p>'];
   }
   if (kind === "quote") {
-    return ['  <blockquote style="' + st(s, "blockquote", tk, fs, lh) + '">' + inline(payload, s, tk, o) + '</blockquote>'];
+    return ['  <blockquote style="' + blockify(st(s, "blockquote", tk, fs, lh), bg) + '">' + inline(payload, s, tk, o) + '</blockquote>'];
   }
   if (kind === "callout") {
-    return ['  <p style="' + st(s, "callout", tk, fs, lh) + '">' + inline(payload, s, tk, o) + '</p>'];
+    return ['  <p style="' + blockify(st(s, "callout", tk, fs, lh), bg) + '">' + inline(payload, s, tk, o) + '</p>'];
   }
   if (kind === "hr") {
-    return ['  <hr style="' + st(s, "hr", tk, fs, lh) + '">'];
+    return ['  <hr style="' + blockify(st(s, "hr", tk, fs, lh), bg) + '">'];
   }
   if (kind === "imgph") {
-    return ['  <p style="font-family:' + SANS + ';font-size:12px;line-height:1.7;color:' + s.muted + ';border:1px dashed ' + o.lineColor + ';border-radius:6px;padding:36px 10px;text-align:center;margin:28px 0 0;">[ 图片：' + esc(payload) + ' ]</p>'];
+    /* 图片占位不带边框：参考成品里图片没有框，虚线框粘过去会被当成小方框 */
+    return ['  <p style="' + blockify('font-family:' + SANS + ';font-size:12px;line-height:1.7;color:' + s.muted + ';text-align:center;margin:28px 0;', bg) + '">[ 图片：' + esc(payload) + ' ]</p>'];
   }
   if (kind === "figcaption") {
-    return ['  <p style="font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:2px;text-align:center;margin:10px 0 28px;">' + inline(payload, s, tk, o) + '</p>'];
+    return ['  <p style="' + blockify('font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:2px;text-align:center;margin:10px 0 28px;', bg) + '">' + inline(payload, s, tk, o) + '</p>'];
   }
   if (kind === "ul" || kind === "ol") {
-    var out = ['  <' + kind + ' style="' + st(s, kind, tk, fs, lh) + '">'];
+    var out = ['  <' + kind + ' style="' + blockify(st(s, kind, tk, fs, lh), bg) + '">'];
     payload.forEach(function (item) {
       out.push('    <li style="' + st(s, "li", tk, fs, lh) + '">' + inline(item, s, tk, o) + '</li>');
     });
@@ -513,8 +555,11 @@ function renderBlock(kind, payload, s, o, tk, paraExtra, secRef) {
 }
 
 /* 唯一的渲染入口：吃 UI 状态，吐可粘贴的整篇 HTML。
-   不包外层 section：实测微信编辑器粘贴时会丢弃最外层容器，底色带不进去；
-   全文底色只用于预览（stage 背景），正文按白底设计。 */
+   全文底色用「牺牲壳」双层包裹（v1.2.0）：实测粘贴时编辑器只丢弃最外层那一个
+   容器，第二层的 section 连同样式会保留（头部卡片的底色就是这么活下来的）。
+   所以外层放不带样式的牺牲壳，真正的底色层放第二层。选「无」时不包裹。
+   每个内容块再经 blockify 防断裂（v1.3.0）：margin 折半转 padding + 补底色，
+   否则块间 margin 露白。 */
 function articleHTML(UI) {
   var s = STYLES[UI.styleId];
   var doc = parseMarkdown(UI.md || "");
@@ -543,7 +588,8 @@ function articleHTML(UI) {
   groups.forEach(function (group) {
     var wrap = o.bg === "grid";
     if (wrap) {
-      parts.push('<section style="border:1px solid ' + o.lineColor + ';border-radius:6px;padding:2px 16px 14px;margin:26px 0;">');
+      /* grid 分节边框同样做防断裂处理：margin 转 padding + 补底色 */
+      parts.push('<section style="' + blockify('border:1px solid ' + o.lineColor + ';border-radius:6px;padding:2px 16px 14px;margin:26px 0;', o.pageBgColor) + '">');
     }
     group.forEach(function (b) {
       parts = parts.concat(renderBlock(b[0], b[1], s, o, tk, paraExtra, secRef));
@@ -551,7 +597,10 @@ function articleHTML(UI) {
     if (wrap) parts.push('</section>');
   });
 
-  return parts.join("\n");
+  if (UI.pageBg === "none") return parts.join("\n");
+  return "<section>\n"
+    + '<section style="background-color:' + UI.pageBg + ';padding:28px 22px;">\n'
+    + parts.join("\n") + "\n</section>\n</section>";
 }
 
 /* ---------------------------------------------------------------- 状态 */
@@ -657,7 +706,7 @@ function syncAll() {
   var cur = SWATCHES.filter(function (x) { return x.v === UI.pageBg; })[0];
   $("pageBgLabel").textContent = UI.pageBg === "none"
     ? "不包裹全文底色"
-    : (cur ? cur.label + " " : "") + UI.pageBg + " · 仅预览，粘贴后回落白底";
+    : (cur ? cur.label + " " : "") + UI.pageBg + " · 全文底色（双层包裹，随粘贴保留）";
 
   if (!UI.accent) $("accent").value = s.accent;
   if (!UI.brandColor) $("brandColor").value = s.brand;
@@ -678,7 +727,7 @@ function paint() {
   UI.md = $("md").value;
   UI.title = parseMarkdown(UI.md).title || "";
   stage.innerHTML = articleHTML(UI);
-  // 全文底色仅作用于预览容器：粘贴进微信后会回落白底（外层容器被编辑器丢弃）
+  // 预览容器底色与全文底色一致，边缘无缝（底色本体由内层 section 承载并随粘贴保留）
   stage.style.backgroundColor = (UI.pageBg === "none") ? STYLES[UI.styleId].bg : UI.pageBg;
 }
 
@@ -724,7 +773,7 @@ function status(msg, warn) {
 }
 
 function selectArticle() {
-  /* 不包外层容器，选中 stage 的全部内容（而不是第一个子元素）。 */
+  /* 选中 stage 的全部内容（而不是第一个子元素）——复制片段的顶层就是牺牲壳。 */
   var range = document.createRange();
   range.selectNodeContents(stage);
   var sel = window.getSelection();
