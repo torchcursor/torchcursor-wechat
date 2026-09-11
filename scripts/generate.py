@@ -9,6 +9,13 @@ torchcursor-wechat · 把 Markdown 转成可直接粘贴进微信公众号后台
   外链资源、JS、hover、position:fixed；不使用只靠父级继承才成立的样式。
   表格在微信里是稳定的图文并排方案，因此用于头部卡片与编号分节。
 
+全文底色为什么必须由外层 <section> 承载：
+  公众号编辑器底层是 ProseMirror，白名单里有 <section>、没有 <body> 和 <div>。
+  只写在 <body> 上的底色不在复制范围内，粘进去必然消失；用 <div> 包内容更糟——
+  div 不在白名单里，连同背景会被整段吞掉，只剩文字。
+  所以整篇内容统一包在一个外层 <section> 里，由它承载 background-color。
+  这个外层只承载背景，不承载任何文字样式，因此即使被平台清洗掉也不影响正文可读性。
+
 依赖：仅 Python 3.8+ 标准库。
 """
 import argparse
@@ -18,7 +25,7 @@ import os
 import re
 import sys
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 SANS = ("-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',"
         "'Hiragino Sans GB','Microsoft YaHei',sans-serif")
@@ -375,7 +382,7 @@ def head_card(s, opts, accent, brand, muted, border):
     title_html = inline(title_txt, s, accent, brand)
     p = []
     p.append('<section style="margin:0 0 26px;border:1px solid %s;border-radius:6px;'
-             'background-color:%s;padding:0;">' % (border, opts["bg_color"]))
+             'background-color:%s;padding:0;">' % (border, opts.get("_page_bg") or s["bg"]))
     if card["eyebrow"]:
         p.append('  <p style="font-family:%s;font-size:11px;line-height:1.6;color:%s;'
                  'letter-spacing:3px;margin:0;padding:18px 18px 0;">%s</p>'
@@ -448,7 +455,7 @@ def render_block(kind, payload, s, opts, accent, brand, muted, line, para_extra)
         return [
             '  <p style="font-family:%s;font-size:12px;line-height:1.7;color:%s;'
             'border:1px dashed %s;border-radius:6px;padding:36px 10px;text-align:center;'
-            'margin:28px 0 0;">[ 图片：%s ]</p>' % (SANS, muted, opts["bg_line"], _html.escape(payload)),
+            'margin:28px 0 0;">[ 图片：%s ]</p>' % (SANS, muted, line, _html.escape(payload)),
         ]
 
     if kind == "figcaption":
@@ -498,6 +505,24 @@ def render(style_id, s, blocks, opts):
     parts.append('<body style="max-width:740px;margin:0 auto;padding:28px 22px;'
                  'background-color:%s;font-family:%s;">' % (opts["bg_color"] or s["bg"], SANS))
 
+    # 全文底色由外层 <section> 承载（body 上的底色不在复制范围内，粘不进公众号）
+    page_bg = opts.get("page_bg", "auto")
+    if page_bg == "auto":
+        page_bg = opts["bg_color"] or s["bg"]
+    if not page_bg or str(page_bg).lower() == "none":
+        opts["_page_bg"] = s["bg"]          # 不包裹，但卡片仍需要一个有效底色
+        page_bg = ""
+    else:
+        opts["_page_bg"] = page_bg
+    wrap_open = False
+    if page_bg:
+        wrap_style = "background-color:%s;" % page_bg
+        if opts.get("page_bg_image"):
+            wrap_style += ("background-image:url('%s');background-repeat:repeat;"
+                           "background-position:top left;" % opts["page_bg_image"])
+        parts.append('<section style="%s">' % wrap_style)
+        wrap_open = True
+
     if opts["card"] and s.get("marks"):
         parts += head_card(s, opts, accent, brand, muted, border)
         opts["_sec"] = 0
@@ -522,6 +547,9 @@ def render(style_id, s, blocks, opts):
         if wrap:
             parts.append('</section>')
 
+    if wrap_open:
+        parts.append('</section>')
+
     parts += ["</body>", "</html>", ""]
     return "\n".join(parts)
 
@@ -540,6 +568,7 @@ def self_check(text):
         (r"<h1[ >]", "正文一级标题（会与后台标题重复）"),
         (r"\\n", "字面 \\n 文本"),
         (r"%%", "字面 %% 文本"),
+        (r":\s*;", "空的 CSS 声明（形如 background-color:;）"),
     ]:
         if re.search(pat, text):
             problems.append("含 %s" % label)
@@ -576,6 +605,8 @@ def build_opts(args):
         "brand_color": "",
         "bg_color": "",
         "bg_line": "",
+        "page_bg": "auto",
+        "page_bg_image": "",
         "ink": "",
         "font_size": 16,
         "line_height": 1.9,
@@ -593,7 +624,7 @@ def build_opts(args):
         o["card"] = dict(DEFAULT_CARD, **(cfg.get("card") or {}))
 
     for key in ("style", "bg", "accent", "brand_color", "bg_color", "bg_line", "ink",
-                "font_size", "line_height", "title", "out"):
+                "page_bg", "page_bg_image", "font_size", "line_height", "title", "out"):
         val = getattr(args, key, None)
         if val not in (None, ""):
             o[key] = val
@@ -631,6 +662,12 @@ def main(argv=None):
     ap.add_argument("--brand-color", dest="brand_color", help="品牌词颜色，如 #4a5bc4")
     ap.add_argument("--bg-color", dest="bg_color", help="页面底色，如 #fafaf4")
     ap.add_argument("--bg-line", dest="bg_line", help="底纹线色，如 #e6e3d8")
+    ap.add_argument("--page-bg", dest="page_bg",
+                    help="全文底色：auto（跟随风格/--bg-color）/ none / #色值。"
+                         "由外层 <section> 承载，粘贴后能保留")
+    ap.add_argument("--page-bg-image", dest="page_bg_image",
+                    help="全文背景图 URL（可平铺）。注意：公众号可能清洗 background-image，"
+                         "保底做法是用 make_bg_tile.py 出图后在后台「背景」里手动上传")
     ap.add_argument("--ink", help="金句卡/导语条底色，如 #1e1f21")
     ap.add_argument("--font-size", dest="font_size", type=int, help="正文字号 px（默认 16）")
     ap.add_argument("--line-height", dest="line_height", type=float, help="正文行高（默认 1.9）")

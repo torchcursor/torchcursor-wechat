@@ -18,6 +18,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 两套实现同步校验（generate.py ↔ studio.html）
+        run: python3 scripts/check_sync.py
+
       - name: 生成全部风格与底纹组合（含微信粘贴合规自检）
         run: |
           set -e
@@ -27,6 +34,12 @@ jobs:
               --config examples/torchcursor.config.json \
               --out /tmp/out --check
           done
+
+      - name: 控制台真机验证（jsdom 点按钮）
+        run: |
+          set -e
+          npm install jsdom --no-save --silent
+          node scripts/test_studio.js
 
       - name: 生成底纹图（验证零依赖 PNG 编码）
         run: |
