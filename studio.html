@@ -433,20 +433,12 @@ function app(style, extra) {
 }
 
 function partHeader(num, secTitle, s, tk, tight) {
+  /* 纯段落堆叠，不用表格：微信编辑器会把布局表格转成带边框的表格组件（实测）。 */
   var mt = tight ? "22px" : "48px", mb = tight ? "12px" : "18px";
   return [
-    '  <table role="presentation" style="width:100%;border-collapse:collapse;margin:' + mt + ' 0 ' + mb + ';">',
-    '    <tbody><tr>',
-    '      <td style="width:58px;vertical-align:top;padding:2px 0 0;">',
-    '        <p style="font-family:' + SANS + ';font-size:24px;line-height:1.2;font-weight:850;color:#1a1a1a;margin:0;">' + num + '</p>',
-    '        <p style="font-family:' + SANS + ';font-size:10px;line-height:1.5;color:' + s.muted + ';letter-spacing:2px;margin:2px 0 0;">PART</p>',
-    '      </td>',
-    '      <td style="vertical-align:middle;padding:0 0 0 10px;">',
-    '        <p style="font-family:' + SANS + ';font-size:21px;line-height:1.5;font-weight:850;color:#1a1a1a;margin:0;">' + secTitle + '</p>',
-    '        <p style="font-family:' + SANS + ';font-size:10px;line-height:1.5;color:' + s.muted + ';letter-spacing:3px;margin:6px 0 0;">NOTES</p>',
-    '      </td>',
-    '    </tr></tbody>',
-    '  </table>'
+    '  <p style="font-family:' + SANS + ';font-size:24px;line-height:1.2;font-weight:850;color:#1a1a1a;margin:' + mt + ' 0 0;">' + num + '&nbsp;<span style="font-size:10px;font-weight:600;color:' + s.muted + ';letter-spacing:2px;">PART</span></p>',
+    '  <p style="font-family:' + SANS + ';font-size:21px;line-height:1.5;font-weight:850;color:#1a1a1a;margin:8px 0 0;">' + secTitle + '</p>',
+    '  <p style="font-family:' + SANS + ';font-size:10px;line-height:1.5;color:' + s.muted + ';letter-spacing:3px;margin:4px 0 ' + mb + ';">NOTES</p>'
   ];
 }
 
@@ -456,7 +448,7 @@ function headCard(s, o, tk) {
   if (card.eyebrow) {
     out.push('  <p style="font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:3px;margin:0;padding:18px 18px 0;">' + esc(card.eyebrow) + '</p>');
   }
-  out.push('  <table role="presentation" style="width:100%;border-collapse:collapse;">');
+  out.push('  <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">');
   out.push('    <tbody><tr>');
   out.push('      <td style="width:64%;vertical-align:middle;padding:16px 14px 0 18px;">');
   out.push('        <p style="font-family:' + SANS + ';font-size:24px;line-height:1.45;font-weight:850;color:#1a1a1a;margin:0;">' + inline(o.title, s, tk, o) + '</p>');
@@ -520,7 +512,9 @@ function renderBlock(kind, payload, s, o, tk, paraExtra, secRef) {
   return [];
 }
 
-/* 唯一的渲染入口：吃 UI 状态，吐可粘贴的整篇 HTML（外层 section 承载全文底色）。 */
+/* 唯一的渲染入口：吃 UI 状态，吐可粘贴的整篇 HTML。
+   不包外层 section：实测微信编辑器粘贴时会丢弃最外层容器，底色带不进去；
+   全文底色只用于预览（stage 背景），正文按白底设计。 */
 function articleHTML(UI) {
   var s = STYLES[UI.styleId];
   var doc = parseMarkdown(UI.md || "");
@@ -535,7 +529,7 @@ function articleHTML(UI) {
   var paraExtra = (o.bg === "ruled" || o.bg === "grid")
     ? "padding-bottom:12px;border-bottom:1px solid " + o.lineColor + ";" : "";
 
-  var parts = ['<section style="background-color:' + pageBg + ';">'];
+  var parts = [];
   var secRef = { n: 0 };
   if (s.card && UI.card) parts = parts.concat(headCard(s, o, tk));
 
@@ -557,7 +551,6 @@ function articleHTML(UI) {
     if (wrap) parts.push('</section>');
   });
 
-  parts.push('</section>');
   return parts.join("\n");
 }
 
@@ -664,7 +657,7 @@ function syncAll() {
   var cur = SWATCHES.filter(function (x) { return x.v === UI.pageBg; })[0];
   $("pageBgLabel").textContent = UI.pageBg === "none"
     ? "不包裹全文底色"
-    : (cur ? cur.label + " " : "") + UI.pageBg;
+    : (cur ? cur.label + " " : "") + UI.pageBg + " · 仅预览，粘贴后回落白底";
 
   if (!UI.accent) $("accent").value = s.accent;
   if (!UI.brandColor) $("brandColor").value = s.brand;
@@ -685,6 +678,8 @@ function paint() {
   UI.md = $("md").value;
   UI.title = parseMarkdown(UI.md).title || "";
   stage.innerHTML = articleHTML(UI);
+  // 全文底色仅作用于预览容器：粘贴进微信后会回落白底（外层容器被编辑器丢弃）
+  stage.style.backgroundColor = (UI.pageBg === "none") ? STYLES[UI.styleId].bg : UI.pageBg;
 }
 
 /* ---------------------------------------------------------------- 底纹图 */
@@ -729,13 +724,13 @@ function status(msg, warn) {
 }
 
 function selectArticle() {
-  var node = stage.firstElementChild || stage;
+  /* 不包外层容器，选中 stage 的全部内容（而不是第一个子元素）。 */
   var range = document.createRange();
-  range.selectNode(node);
+  range.selectNodeContents(stage);
   var sel = window.getSelection();
   sel.removeAllRanges();
   sel.addRange(range);
-  return node;
+  return stage;
 }
 
 $("copyBtn").onclick = function () {
@@ -750,12 +745,12 @@ $("selBtn").onclick = function () {
   status("已选中正文，按 Cmd+C 即可");
 };
 $("dlBtn").onclick = function () {
-  var node = selectArticle();
+  selectArticle();
   var doc = '<!doctype html>\n<html lang="zh-CN">\n<head>\n<meta charset="utf-8">\n'
     + '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
     + "<title>" + esc(UI.title || "微信公众号文章") + "</title>\n</head>\n"
     + '<body style="max-width:740px;margin:0 auto;padding:28px 22px;background-color:' + UI._pageBg
-    + ";font-family:" + SANS + ';">\n' + node.outerHTML + "\n</body>\n</html>\n";
+    + ";font-family:" + SANS + ';">\n' + stage.innerHTML + "\n</body>\n</html>\n";
   var url = URL.createObjectURL(new Blob([doc], { type: "text/html;charset=utf-8" }));
   var a = document.createElement("a");
   a.href = url;
@@ -771,7 +766,7 @@ $("tileDown").onclick = function () {
   a.href = cv.toDataURL("image/png");
   a.download = "bg-" + UI.tilePattern + "-" + $("tileSize").value + ".png";
   a.click();
-  status("底纹图已下载，去公众号后台「背景」上传");
+  status("底纹图已下载（注：多数公众号后台没有背景上传入口，仅适用于支持自定义背景的编辑器）");
 };
 
 /* ---------------------------------------------------------------- 事件绑定 */

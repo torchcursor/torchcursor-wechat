@@ -25,7 +25,7 @@ import os
 import re
 import sys
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 SANS = ("-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',"
         "'Hiragino Sans GB','Microsoft YaHei',sans-serif")
@@ -351,26 +351,22 @@ def _app(style, extra):
 
 
 def part_header(num, sec_title, s, accent, muted, tight=False):
-    """编号分节：左列 01 + PART，右列标题 + NOTES（两列表格，微信稳定）。"""
+    """编号分节：编号行 + 标题行 + NOTES 行，纯段落堆叠。
+
+    不用表格布局：微信编辑器会把粘贴进来的表格转成自己的表格组件，
+    出现边框、列宽错乱（实测 2026-09-11：编号和标题被拉开很远、带边框）。
+    普通 <p> 是微信处理得最稳的元素，堆叠布局牺牲左右两列观感换取粘贴保真。
+    """
     mt, mb = ("22px", "12px") if tight else ("48px", "18px")
     return [
-        '  <table role="presentation" style="width:100%%;border-collapse:collapse;'
-        'margin:%s 0 %s;">' % (mt, mb),
-        '    <tbody><tr>',
-        '      <td style="width:58px;vertical-align:top;padding:2px 0 0;">',
-        '        <p style="font-family:%s;font-size:24px;line-height:1.2;font-weight:850;'
-        'color:#1a1a1a;margin:0;">%s</p>' % (SANS, num),
-        '        <p style="font-family:%s;font-size:10px;line-height:1.5;color:%s;'
-        'letter-spacing:2px;margin:2px 0 0;">PART</p>' % (SANS, muted),
-        '      </td>',
-        '      <td style="vertical-align:middle;padding:0 0 0 10px;">',
-        '        <p style="font-family:%s;font-size:21px;line-height:1.5;font-weight:850;'
-        'color:#1a1a1a;margin:0;">%s</p>' % (SANS, sec_title),
-        '        <p style="font-family:%s;font-size:10px;line-height:1.5;color:%s;'
-        'letter-spacing:3px;margin:6px 0 0;">NOTES</p>' % (SANS, muted),
-        '      </td>',
-        '    </tr></tbody>',
-        '  </table>',
+        '  <p style="font-family:%s;font-size:24px;line-height:1.2;font-weight:850;'
+        'color:#1a1a1a;margin:%s 0 0;">%s&nbsp;<span style="font-size:10px;'
+        'font-weight:600;color:%s;letter-spacing:2px;">PART</span></p>'
+        % (SANS, mt, num, muted),
+        '  <p style="font-family:%s;font-size:21px;line-height:1.5;font-weight:850;'
+        'color:#1a1a1a;margin:8px 0 0;">%s</p>' % (SANS, sec_title),
+        '  <p style="font-family:%s;font-size:10px;line-height:1.5;color:%s;'
+        'letter-spacing:3px;margin:4px 0 %s;">NOTES</p>' % (SANS, muted, mb),
     ]
 
 
@@ -387,7 +383,8 @@ def head_card(s, opts, accent, brand, muted, border):
         p.append('  <p style="font-family:%s;font-size:11px;line-height:1.6;color:%s;'
                  'letter-spacing:3px;margin:0;padding:18px 18px 0;">%s</p>'
                  % (SANS, muted, _html.escape(card["eyebrow"])))
-    p.append('  <table role="presentation" style="width:100%;border-collapse:collapse;">')
+    p.append('  <table role="presentation" border="0" cellspacing="0" cellpadding="0" '
+             'style="width:100%;border-collapse:collapse;">')
     p.append('    <tbody><tr>')
     p.append('      <td style="width:64%;vertical-align:middle;padding:16px 14px 0 18px;">')
     p.append('        <p style="font-family:%s;font-size:24px;line-height:1.45;font-weight:850;'
@@ -505,8 +502,10 @@ def render(style_id, s, blocks, opts):
     parts.append('<body style="max-width:740px;margin:0 auto;padding:28px 22px;'
                  'background-color:%s;font-family:%s;">' % (opts["bg_color"] or s["bg"], SANS))
 
-    # 全文底色由外层 <section> 承载（body 上的底色不在复制范围内，粘不进公众号）
-    page_bg = opts.get("page_bg", "auto")
+    # 全文底色：默认不包裹（2026-09-11 实测：粘贴时最外层容器会被编辑器丢弃，
+    # 外层 section 的底色带不进去，包了等于没包）。--page-bg 显式指定时仍输出，
+    # 供支持保留外层容器的编辑器使用，属实验性能力。
+    page_bg = opts.get("page_bg", "none")
     if page_bg == "auto":
         page_bg = opts["bg_color"] or s["bg"]
     if not page_bg or str(page_bg).lower() == "none":
@@ -605,7 +604,7 @@ def build_opts(args):
         "brand_color": "",
         "bg_color": "",
         "bg_line": "",
-        "page_bg": "auto",
+        "page_bg": "none",
         "page_bg_image": "",
         "ink": "",
         "font_size": 16,
@@ -663,11 +662,12 @@ def main(argv=None):
     ap.add_argument("--bg-color", dest="bg_color", help="页面底色，如 #fafaf4")
     ap.add_argument("--bg-line", dest="bg_line", help="底纹线色，如 #e6e3d8")
     ap.add_argument("--page-bg", dest="page_bg",
-                    help="全文底色：auto（跟随风格/--bg-color）/ none / #色值。"
-                         "由外层 <section> 承载，粘贴后能保留")
+                    help="全文底色：none（默认，不包裹）/ auto / #色值。"
+                         "注意：实测微信编辑器粘贴时会丢弃最外层容器，此底色大概率带不进去，"
+                         "仅对支持保留外层容器的编辑器有效（实验性）")
     ap.add_argument("--page-bg-image", dest="page_bg_image",
-                    help="全文背景图 URL（可平铺）。注意：公众号可能清洗 background-image，"
-                         "保底做法是用 make_bg_tile.py 出图后在后台「背景」里手动上传")
+                    help="全文背景图 URL（可平铺，实验性）。微信公众号会清洗 background-image，"
+                         "且多数后台没有「背景上传」入口，此参数一般无用")
     ap.add_argument("--ink", help="金句卡/导语条底色，如 #1e1f21")
     ap.add_argument("--font-size", dest="font_size", type=int, help="正文字号 px（默认 16）")
     ap.add_argument("--line-height", dest="line_height", type=float, help="正文行高（默认 1.9）")

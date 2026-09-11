@@ -21,7 +21,8 @@ agent_created: true
 1. **浏览器复制不会带走 `<head><style>`**。所以可见样式必须逐元素写在 `style` 属性上，不能依赖 class、id、伪元素或父级继承。
 2. **公众号后台会二次清洗 HTML/CSS**。禁用 `<style>`、class、id、`:before/:after`、外链资源、JS、hover、`position:fixed`、渐变、阴影、`background-image`。能用单色、边框、留白表达的，就用它们表达。
 3. **正文不重复标题**。文稿首个 `# 一级标题` 只写入 `<title>` 与文件名，不进入正文；否则发布后会出现两个连续标题。
-4. **全文底色必须由外层 `<section>` 承载**。编辑器底层是 ProseMirror，白名单里有 `section`、没有 `body` 和 `div`：把底色写在 `<body>` 上粘进去必然消失，用 `<div>` 包内容则连内容带背景一起被吞。整篇内容统一包在一个外层 `<section>` 里，且**这个外层只承载背景、不承载任何文字样式**——即使被平台清洗，正文可读性也不受影响。
+4. **不依赖最外层容器承载任何样式**。实测（2026-09-11，1.1.0 版曾试过）编辑器粘贴时会**丢弃最外层容器**——外层 `<section>` 带全文底色的方案不成立。全文按白底设计，彩色背景只用在内部元素上（头部卡片、金句卡、引用块等，这些能保留）。
+5. **布局不用表格**。微信编辑器会把粘贴进来的表格转成自己的表格组件：出现边框、列宽错乱（实测：两列表格的编号和标题被拉开很远）。表格只用于头部卡片的图文并排（实测这一个位置能正常渲染，且补了 `border=0` 属性），分节标题等一律用纯段落堆叠。
 
 **为什么要自己写解析器和渲染器，而不是手写 HTML**：微信清洗规则是硬约束，靠人工每次注意必然出错；把规则写进代码 + 自检脚本，才能保证每次产出都合规。本技能自带 `scripts/generate.py`（零第三方依赖）与 `--check` 自检。
 
@@ -51,10 +52,10 @@ python3 scripts/generate.py article.md --style cardnote
 # 全部风格 + 风格总览页
 python3 scripts/generate.py article.md --style all --bg plain
 
-# 全文底色（由外层 section 承载，粘贴后能保留）
+# 全文底色（实验性：实测微信编辑器粘贴时丢弃最外层容器，底色大概率带不进去）
 python3 scripts/generate.py article.md --style cardnote --page-bg "#fafaf4"
 
-# 不要全文底色
+# 默认不包裹（推荐：全文按白底设计）
 python3 scripts/generate.py article.md --style cardnote --page-bg none
 
 # 横线纸 / 方格纸底纹
@@ -67,7 +68,8 @@ python3 scripts/generate.py article.md --config torchcursor.config.json
 # 生成后跑微信粘贴合规自检
 python3 scripts/generate.py article.md --style all --check
 
-# 生成可平铺的底纹 PNG（供公众号后台"全文背景"上传）
+# 生成可平铺的底纹 PNG（仅适用于支持自定义背景上传的编辑器；
+# 实测微信公众号后台没有该入口，此功能对公众号基本无用）
 python3 scripts/make_bg_tile.py --pattern grid --size 40 --theme cardnote --out assets/
 ```
 
@@ -91,13 +93,13 @@ python3 scripts/make_bg_tile.py --pattern grid --size 40 --theme cardnote --out 
 
 | 层 | 做法 | 能否粘贴带入 | 说明 |
 |---|---|---|---|
-| **全文底色** | 整篇内容包在一个外层 `<section>` 里，由它带 `background-color` | **能** | 写在 `<body>` 上的底色不在复制范围内，必丢；用 `<div>` 包会被整段吞掉。只有 `section` 是对的白名单元素 |
+| **全文底色** | 无可靠手段 | **不能** | 实测编辑器粘贴时丢弃最外层容器（1.1.0 的外层 section 方案不成立）；后台也没有全文背景设置入口（2026-09-11 实测）。**全文按白底设计** |
 | **结构底纹** | 用行内边框模拟：`ruled` 每段一条细底线；`grid` 分节区块带边框 + 内部段落底线 | 能 | 微信只清洗背景图和复杂 CSS，边框保留 |
-| **画面底纹** | 真正的方格/横线纸底图，用 `scripts/make_bg_tile.py` 生成可平铺 PNG | 不能 | 需在公众号编辑器「背景 → 自定义上传」手动设置 |
+| **画面底纹** | 真正的方格/横线纸底图，用 `scripts/make_bg_tile.py` 生成可平铺 PNG | 不能 | `make_bg_tile.py` 保留给支持自定义背景上传的第三方编辑器；微信公众号后台没有该入口 |
 
-**不要把 `background-image` 当作可靠的粘贴手段**——它大概率被清洗。`--page-bg-image` 参数保留给"平台恰好没清"的场景，保底做法永远是：生成 PNG + 让用户去后台「背景」上传。
+**不要把 `background-image` 当作可靠的粘贴手段**——它一定被清洗。也不要试图用外层容器承载全文底色——最外层容器会被丢弃。
 
-**判断底色是否带进去，看一个位置就知道**：粘贴后如果顶部卡片（本身也是 `<section>`）的背景还在、而全文背景没了，说明全文底色没被 `section` 承载——那就检查外层包裹是否存在。
+**哪些彩色背景能保留**：内部元素的背景可以——头部卡片、黑底导语条、金句卡、引用块，实测都保留。全文底色不行。
 
 细节与已知回落项见 `references/wechat-limits.md`。
 
@@ -107,8 +109,8 @@ python3 scripts/make_bg_tile.py --pattern grid --size 40 --theme cardnote --out 
 |---|---|
 | `--style` | `cardnote` / `graphite` / `forge` / `all` |
 | `--bg` | `plain` / `ruled` / `grid` |
-| `--page-bg` | 全文底色：`auto`（默认，跟随风格/`--bg-color`）/ `none` / `#色值`。由外层 `<section>` 承载 |
-| `--page-bg-image` | 全文背景图 URL（可平铺）。平台可能清洗，保底用 `make_bg_tile.py` + 后台「背景」 |
+| `--page-bg` | 全文底色：`none`（默认，不包裹）/ `auto` / `#色值`。实验性——实测微信编辑器粘贴时丢弃最外层容器，底色大概率带不进去 |
+| `--page-bg-image` | 全文背景图 URL（可平铺）。微信必清洗，多数后台无背景上传入口，一般无用 |
 | `--accent` `--brand-color` `--bg-color` `--bg-line` `--ink` | 强调色 / 品牌词色 / 页面底色 / 底纹线色 / 金句卡底色 |
 | `--font-size` `--line-height` | 正文字号（默认 16）、行高（默认 1.9） |
 | `--eyebrow` `--lead` `--footer` `--card-img` | 头部卡片眉题 / 黑底导语条 / 落款 / 图片占位文案 |
@@ -149,7 +151,8 @@ python3 scripts/generate.py article.md --style all --check
 
 | 现象 | 原因与处理 |
 |---|---|
-| 粘贴后全文底色丢成白色 | 底色写在 `<body>` 上就会丢。用 1.1.0+ 生成（外层 `<section>` 承载），或 `--page-bg "#色值"`；若仍丢失，在后台「背景」里设全文背景 |
+| 粘贴后全文底色丢成白色 | 这是预期行为：编辑器粘贴时丢弃最外层容器，全文底色没有可靠的粘贴手段。正文按白底设计即可；彩色背景只用于卡片/金句卡/引用块等内部元素 |
+| 粘贴后编号分节变成带边框的表格、编号和标题离得很远 | 旧版本用表格做分节布局会触发此问题；用 1.1.1+（纯段落堆叠）重新生成 |
 | 粘贴后连正文都变纯文字了 | 内容被 `<div>` 包住了——编辑器白名单没有 `div`，整段会被吞。本技能一律用 `<section>`，不要手改成 `div` |
 | 底纹没出现 | 用的是画面底纹而非结构底纹；改用 `--bg ruled/grid`，或生成 PNG 去后台设置 |
 | 出现两个标题 | 文稿里的首个一级标题被渲染进了正文；确认用的是本技能的生成器 |

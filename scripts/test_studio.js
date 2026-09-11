@@ -51,10 +51,17 @@ check("底纹按钮 3 个", $("segBg").querySelectorAll("button").length === 3);
 check("底色色板 7 个", $("swatches").querySelectorAll("button").length === 7);
 check("预览区已渲染内容", stage.innerHTML.length > 500);
 
-console.log("\n[2] 全文底色包裹（核心修复）");
-check("外层是承载底色的 section",
-  /^<section style="background-color:#fafaf4;">/.test(stage.innerHTML.trim()),
+console.log("\n[2] 结构修复（1.1.1）：不包外层容器 + 分节标题不用表格");
+check("不再包外层 section（实测微信粘贴时丢弃最外层容器）",
+  !/^<section style="background-color/.test(stage.innerHTML.trim()),
   stage.innerHTML.trim().slice(0, 80));
+check("全文底色只作用于预览容器", (stage.style.backgroundColor || "").length > 0,
+  stage.style.backgroundColor);
+check("分节标题不再用表格布局（仅头部卡片保留一个表格）",
+  (stage.innerHTML.match(/<table/g) || []).length === 1,
+  "表格数=" + (stage.innerHTML.match(/<table/g) || []).length);
+check("编号分节标题为段落堆叠（编号+PART 同段）",
+  stage.innerHTML.indexOf(">01&nbsp;<span") > -1);
 check("正文有内容（段落/分节）", stage.innerHTML.indexOf("PART") > -1 && stage.innerHTML.indexOf("<p ") > -1);
 
 console.log("\n[3] 点按钮切风格");
@@ -77,14 +84,18 @@ clickByText("segBg", "无底纹");
 check("回到无底纹：正文无段落底线",
   (stage.innerHTML.match(/padding-bottom:12px;border-bottom/g) || []).length === 0);
 
-console.log("\n[5] 点色板换全文底色");
+console.log("\n[5] 点色板换预览底色（不进粘贴内容）");
 clickByValue("swatches", "#f2f6fb");
-check("底色切成淡蓝 #f2f6fb", stage.innerHTML.indexOf('background-color:#f2f6fb;') > -1);
+check("预览底色切成淡蓝 #f2f6fb", (stage.style.backgroundColor || "").indexOf("242, 246, 251") > -1,
+  stage.style.backgroundColor);
+check("粘贴内容里没有外层底色包裹",
+  !/^<section style="background-color/.test(stage.innerHTML.trim()));
 check("色板联动文字标签", $("pageBgLabel").textContent.indexOf("#f2f6fb") > -1,
   $("pageBgLabel").textContent);
 clickByValue("swatches", "none");
 check("选「无」回落到风格默认米白 #fafaf4",
-  stage.innerHTML.indexOf('background-color:#fafaf4;') > -1);
+  (stage.style.backgroundColor || "").indexOf("250, 250, 244") > -1,
+  stage.style.backgroundColor);
 check("「无」有可见文字标签", Array.from($("swatches").querySelectorAll("button"))
   .some(b => b.textContent.trim() === "无"));
 
@@ -102,7 +113,7 @@ ta.value = "# 测试标题\n\n第一段正文。\n\n> !这是一句金句\n\n## 
 ta.dispatchEvent(new win.Event("input"));
 check("新文稿已渲染", stage.innerHTML.indexOf("第一段正文") > -1);
 check("金句卡生效", stage.innerHTML.indexOf("这是一句金句") > -1);
-check("自动编号分节 01", stage.innerHTML.indexOf(">01</p>") > -1);
+check("自动编号分节 01", stage.innerHTML.indexOf(">01&nbsp;<span") > -1);
 check("列表渲染为 ul/li", stage.innerHTML.indexOf("<ul") > -1 && stage.innerHTML.indexOf("<li") > -1);
 check("首个 H1 未进正文（防双标题）", stage.innerHTML.indexOf("<h1") === -1);
 

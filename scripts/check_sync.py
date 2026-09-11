@@ -143,13 +143,14 @@ process.stdout.write(articleHTML(UI_T));
     s = generate.STYLES["cardnote"]
     opts = {
         "bg": "plain", "accent": "", "brand_color": "", "bg_color": "",
-        "bg_line": "", "page_bg": "auto", "page_bg_image": "", "ink": "",
+        "bg_line": "", "page_bg": "none", "page_bg_image": "", "ink": "",
         "font_size": 16, "line_height": 1.9, "parts": True, "card": generate.DEFAULT_CARD,
         "title": "", "_title": title, "prefer_plain_h2": False, "_sec": 0,
     }
     py_html = generate.render("cardnote", s, blocks, opts)
-    start = py_html.find('<section style="background-color:')
-    end = py_html.rfind("</section>") + len("</section>")
+    start = py_html.find("<body")
+    start = py_html.find(">", start) + 1
+    end = py_html.rfind("</body>")
     py_inner = py_html[start:end]
 
     if norm(py_inner) != norm(js_html):
