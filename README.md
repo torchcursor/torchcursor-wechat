@@ -1,0 +1,148 @@
+# torchcursor-wechat
+
+**把 Markdown 转成「粘贴进微信公众号后台后排版还在」的 HTML。**
+
+An Agent Skill + standalone CLI that converts Markdown into WeChat Official Account—ready HTML. Styles are inlined per element so the layout survives the WeChat editor's HTML/CSS sanitizer.
+
+```
+Markdown  →  一行命令  →  Cmd+A / Cmd+C  →  粘贴进公众号后台  →  手机端排版完好
+```
+
+零第三方依赖（Python 3.8+ 标准库），不需要联网，不写入任何远程服务。
+
+---
+
+## 为什么需要它
+
+微信公众号后台是一个很"挑剔"的编辑器：浏览器全选复制**不会带走 `<head><style>`**，后台还会**二次清洗** HTML 和 CSS。大多数 Markdown 转换器生成的 HTML 粘进微信后，标题层级、底色、强调全丢。
+
+这个工具把"微信粘贴规则"写进了生成器和自检脚本：
+
+- 所有可见样式**逐元素展开**到 `style` 属性，不依赖 class / id / 伪元素 / 父级继承
+- 生成的 HTML **不含** `<style>`、class、id、`:before/:after`、`<script>`、外链资源、`@import`
+- 文稿首个 `# 标题` 只写入 `<title>`，**不进正文**——避免发布后出现两个标题
+- 附带 `--check` 自检：任何一条红线不通过就不交付
+
+## 快速开始
+
+```bash
+git clone https://github.com/<your-name>/torchcursor-wechat.git
+cd torchcursor-wechat
+
+python3 scripts/generate.py examples/sample-article.md --style all --config examples/torchcursor.config.json --check
+```
+
+打开 `examples/output/00_风格总览_plain.html` 比较风格，然后：
+
+1. 在浏览器打开选定的 HTML
+2. `Cmd+A` 全选，`Cmd+C` 复制
+3. 粘贴进公众号后台编辑器
+4. 用后台预览检查手机端效果
+
+## 三种风格
+
+| style id | 名称 | 气质 | 适用 |
+|---|---|---|---|
+| `cardnote` | 卡片笔记 | 暖米白底、头部方框卡片、编号分节、下划线强调 | 观点长文、认知输出、系列专栏（默认） |
+| `graphite` | 石墨工业 | 冷、硬、克制，无彩色 | 行业分析、深度判断、B 端内容 |
+| `forge` | 熔炉橙 | 暖、有能量，单一强调色 | 观点输出、转化文、活动通知 |
+
+## 底纹：两层，别搞混
+
+这是本工具和普通 Markdown 转 HTML 最大的差别。
+
+| 层 | 实现 | 能否粘贴带入 | 怎么用 |
+|---|---|---|---|
+| **结构底纹** | 行内边框模拟：`ruled` 每段一条细底线（横线纸）；`grid` 分节区块带边框 + 内部段落底线（方格纸） | **能** | `--bg ruled` / `--bg grid` |
+| **画面底纹** | 真正可平铺的底纹图 | **不能**，需后台手动设置 | `python3 scripts/make_bg_tile.py --pattern grid --theme cardnote` 生成 PNG，再去公众号后台「背景 → 自定义上传」 |
+
+**不要指望把 `background-image` 写进 HTML**：微信会清洗它，写了等于没写。要真底纹就生成 PNG + 后台设置。
+
+```bash
+# 生成三种主题的方格 / 横线 / 点阵底纹（平铺图）
+python3 scripts/make_bg_tile.py --pattern grid  --size 40 --all-themes --out assets
+python3 scripts/make_bg_tile.py --pattern ruled --size 32 --all-themes --out assets
+python3 scripts/make_bg_tile.py --pattern dots  --size 24 --theme cardnote --out assets
+```
+
+## 常用参数
+
+```bash
+# 自定义强调色 / 品牌词色 / 底色 / 线色
+python3 scripts/generate.py article.md --accent "#c2410c" --brand-color "#1d4ed8" \
+  --bg-color "#fafaf4" --bg-line "#e6e3d8"
+
+# 头部卡片文案（cardnote 风格）
+python3 scripts/generate.py article.md --eyebrow "NOTES · 你的品牌" \
+  --lead "一句话导语" --footer "你的落款" --card-img "[ 头图占位 ]"
+
+# 字号行高、关掉编号分节 / 头部卡片
+python3 scripts/generate.py article.md --font-size 17 --line-height 1.95 --no-parts
+
+# 用配置文件固定栏目调性
+python3 scripts/generate.py article.md --config torchcursor.config.json
+```
+
+完整参数见 `references/customize.md`。
+
+## 作为 Agent Skill 使用
+
+`SKILL.md` 遵循 [Agent Skills 开放标准](https://github.com/anthropics/skills)：把整个目录放进你的技能目录即可被支持该标准的 Agent 加载。
+
+```bash
+# 个人级（跨项目可用）
+cp -r torchcursor-wechat ~/.claude/skills/
+# 或项目级
+mkdir -p .claude/skills && cp -r torchcursor-wechat .claude/skills/
+```
+
+## 目录结构
+
+```
+torchcursor-wechat/
+├── SKILL.md                    # 技能入口（frontmatter: name / description）
+├── README.md
+├── CHANGELOG.md
+├── LICENSE                     # MIT
+├── scripts/
+│   ├── generate.py             # Markdown → 微信可粘贴 HTML
+│   └── make_bg_tile.py         # 生成可平铺底纹 PNG（手写 PNG 编码，零依赖）
+├── references/
+│   ├── styles.md               # 三种风格的完整 CSS 设计源
+│   ├── customize.md            # 参数手册 / 配置文件 / 新增风格
+│   └── wechat-limits.md        # 微信粘贴红线与已知回落项
+├── examples/
+│   ├── sample-article.md
+│   ├── torchcursor.config.json
+│   └── output/                 # 生成样张（可直接对比）
+└── assets/                     # 预生成的底纹 PNG
+```
+
+## Markdown 支持速查
+
+| 写法 | 结果 |
+|---|---|
+| 首个 `# 标题` | 只进 `<title>`，不进正文 |
+| `## 标题` | 分节，自动编号 `01/02/03…`（两列表格分节头） |
+| `**粗体**` `` `代码` `` `==强调==` | 加粗 / 行内代码 / 关键强调 |
+| `> 引用` / `> !金句` | 引用块 / 深色底白字金句卡 |
+| `*图注*`（独占一行） | 居中灰色图注 |
+| `![说明](路径)` | 图片占位（不内嵌图片） |
+| `- 列表` `1. 列表` `---` | 列表 / 分隔线 |
+| `<u>` `<r>` `<l>` `<n>` | 高级行内标记：强调 / 红字 / 品牌词 / 编号 |
+
+## English
+
+**torchcursor-wechat** turns Markdown into HTML that keeps its layout after being pasted into the WeChat Official Account (微信公众号) editor.
+
+Why it exists: the WeChat editor strips `<head><style>` on copy and sanitizes the pasted HTML/CSS again. Generic Markdown-to-HTML tools lose headings, backgrounds and emphasis. This tool inlines every visible style per element, forbids `<style>` / class / id / pseudo-elements / external assets, drops the leading `# H1` from the body (so you don't get a duplicated title), and ships a `--check` linter for the paste-safety rules.
+
+Three styles (`cardnote`, `graphite`, `forge`), three background modes (`plain`, `ruled`, `grid`), a JSON config for stable column branding, and a dependency-free PNG generator for real tiled paper textures you apply via the editor's own background setting.
+
+Requires Python 3.8+. No third-party packages, no network access.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+排版范式参考中文公众号常见的「卡片笔记」结构（信息卡片 + 编号分节 + 强调下划线），只借鉴排版结构，不包含第三方品牌资产。

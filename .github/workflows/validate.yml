@@ -1,0 +1,55 @@
+name: validate
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 生成全部风格与底纹组合（含微信粘贴合规自检）
+        run: |
+          set -e
+          for bg in plain ruled grid; do
+            python3 scripts/generate.py examples/sample-article.md \
+              --style all --bg "$bg" \
+              --config examples/torchcursor.config.json \
+              --out /tmp/out --check
+          done
+
+      - name: 生成底纹图（验证零依赖 PNG 编码）
+        run: |
+          set -e
+          python3 scripts/make_bg_tile.py --pattern grid  --size 40 --all-themes --out /tmp/tiles
+          python3 scripts/make_bg_tile.py --pattern ruled --size 32 --all-themes --out /tmp/tiles
+          python3 scripts/make_bg_tile.py --pattern dots  --size 24 --theme cardnote --out /tmp/tiles
+          ls -la /tmp/tiles
+
+      - name: 检查 SKILL.md frontmatter
+        run: |
+          python3 - <<'PY'
+          import re, sys, pathlib
+          text = pathlib.Path("SKILL.md").read_text(encoding="utf-8")
+          m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
+          assert m, "SKILL.md 缺少 YAML frontmatter"
+          fm = m.group(1)
+          name = re.search(r"^name:\s*(\S+)$", fm, re.M)
+          desc = re.search(r"^description:\s*(.+)$", fm, re.M)
+          assert name, "缺少 name"
+          assert desc, "缺少 description"
+          assert name.group(1) == "torchcursor-wechat", "name 必须与目录名一致"
+          assert len(desc.group(1)) <= 1024, "description 超过 1024 字符"
+          assert len(text.splitlines()) <= 500, "SKILL.md 正文超过 500 行"
+          print("SKILL.md 校验通过：", name.group(1))
+          PY
