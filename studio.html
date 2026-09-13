@@ -397,28 +397,27 @@ function partHeader(num, secTitle, s, tk, bg) {
 }
 
 function cardVisual(card, s) {
-  /* v1.6.0：固定像素宽 132px + float:right——不依赖父容器百分比宽度
-     （微信粘贴会洗掉分栏的百分比宽度，导致图片塌小、位置错乱，实测）。
-     真图 height:auto 保比例；占位框固定 132x88 空盒，删光文字盒子仍在。 */
+  /* v1.6.1：inline-block 固定 160px（微信不认 float 文字绕排，真机实测标题被挤到图下）；
+     圆角 8px（12px 太圆）；固定像素宽不依赖父容器百分比（塌小根因已修）；
+     占位框固定 160x96 空盒，删光文字盒子仍在。 */
   var url = (card.imgUrl || "").trim();
-  var common = 'float:right;width:132px;border-radius:12px;border:1px solid ' + s.border + ';box-sizing:border-box;margin:2px 0 8px 14px;';
+  var common = 'display:inline-block;width:160px;max-width:100%;border-radius:8px;border:1px solid ' + s.border + ';box-sizing:border-box;vertical-align:middle;';
   if (url) {
-    return '<img src="' + esc(url) + '" alt="" style="' + common + 'height:auto;max-width:100%;">';
+    return '<img src="' + esc(url) + '" alt="" style="' + common + 'height:auto;">';
   }
-  return '<span style="' + common + 'height:88px;line-height:88px;text-align:center;font-family:' + SANS + ';font-size:12px;color:' + s.muted + ';">' + esc(card.img || "[ 图片占位 ]") + '</span>';
+  return '<span style="' + common + 'height:96px;line-height:96px;text-align:center;font-family:' + SANS + ';font-size:12px;color:' + s.muted + ';">' + esc(card.img || "[ 图片占位 ]") + '</span>';
 }
 
 function headCard(s, o, tk) {
-  /* 单列流式 + 图片 float:right（v1.6.0）：不用 <table>（微信转带边框表格组件），
-     也不用 inline-block 百分比分栏（微信粘贴洗掉百分比宽度：图片塌小、分栏堆叠，
-     实测 2026-09-13）。末尾 clear:both 空段收住浮动，落款/导语条不会绕到图旁。 */
+  /* 左标题 62% + 右图 38% inline-block 双分栏，垂直居中（v1.6.1，真机定论：
+     微信不认 float 文字绕排；双分栏是 135/壹伴通用结构，粘贴认）。
+     图片在栏内固定像素宽。两个分栏写在同一行，避免空白节点挤换行。 */
   var card = o.cardCfg, out = [];
   out.push('<section style="margin:0;border:1px solid ' + s.border + ';border-radius:6px;background-color:' + o.pageBgColor + ';padding:0;">');
   if (card.eyebrow) {
     out.push('  <p style="font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:3px;margin:0;padding:18px 18px 0;">' + esc(card.eyebrow) + '</p>');
   }
-  out.push('  <section style="margin:0;padding:16px 18px 0;">' + cardVisual(card, s) + '<p style="font-family:' + SANS + ';font-size:24px;line-height:1.45;font-weight:700;color:#262626;margin:0;">' + inline(o.title, s, tk, o) + '</p></section>');
-  out.push('  <section style="clear:both;height:0;line-height:0;font-size:0;">&nbsp;</section>');
+  out.push('  <section style="margin:0;padding:16px 18px 0;"><section style="display:inline-block;width:62%;vertical-align:middle;"><p style="font-family:' + SANS + ';font-size:24px;line-height:1.45;font-weight:700;color:#262626;margin:0;padding-right:8px;">' + inline(o.title, s, tk, o) + '</p></section><section style="display:inline-block;width:38%;vertical-align:middle;text-align:right;">' + cardVisual(card, s) + '</section></section>');
   if (card.footer) {
     out.push('  <p style="font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:2px;margin:0;padding:14px 18px 16px;">' + esc(card.footer) + '</p>');
   }

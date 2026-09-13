@@ -58,11 +58,16 @@ check("预览容器有底色", (stage.style.backgroundColor || "").length > 0,
 check("全文不再使用表格（微信会把表格转成带边框的表格组件）",
   (stage.innerHTML.match(/<table/g) || []).length === 0,
   "表格数=" + (stage.innerHTML.match(/<table/g) || []).length);
-check("头部卡片图片为固定像素宽 + 右浮动（不依赖父容器百分比，微信洗不掉）",
-  stage.innerHTML.indexOf("float:right;width:132px") > -1 &&
-  stage.innerHTML.indexOf("display:inline-block;width:38%") === -1);
-check("浮动有 clear:both 收尾（落款/导语条不绕排）",
-  stage.innerHTML.indexOf("clear:both") > -1);
+check("头部卡片为 62/38 双分栏（微信不认 float 绕排，分栏是通用结构）",
+  stage.innerHTML.indexOf("display:inline-block;width:62%") > -1 &&
+  stage.innerHTML.indexOf("display:inline-block;width:38%") > -1);
+check("头部图片固定像素宽（不依赖父容器百分比，右栏内右对齐）",
+  stage.innerHTML.indexOf("width:160px") > -1 &&
+  stage.innerHTML.indexOf("text-align:right") > -1 &&
+  stage.innerHTML.indexOf("float:right") === -1);
+check("图片圆角 8px（12px 太圆，David 反馈）",
+  stage.innerHTML.indexOf("border-radius:8px") > -1 &&
+  stage.innerHTML.indexOf("border-radius:12px") === -1);
 check("全文没有虚线边框（占位框会被当成小方框）",
   stage.innerHTML.indexOf("dashed") === -1);
 check("编号分节标题为段落堆叠（编号+PART 同段）",
@@ -141,16 +146,16 @@ check("无 URL 的 ![占位](说明) 仍是文字占位框",
   stage.innerHTML.indexOf("[ 图片：占位 ]") > -1 || stage.innerHTML.indexOf("占位") > -1);
 $("cardImg").value = "https://mmbiz.qpic.cn/top.jpg";
 $("cardImg").oninput();
-check("头部图片链接：有 URL 渲染真图（132px 固定宽 + 保比例 + 圆角细边框）",
-  stage.innerHTML.indexOf("float:right;width:132px") > -1 &&
-  stage.innerHTML.indexOf("height:auto;max-width:100%") > -1 &&
-  stage.innerHTML.indexOf("border-radius:12px;border:1px solid") > -1,
+check("头部图片链接：有 URL 渲染真图（160px 固定宽 + 保比例 + 8px 圆角细边框）",
+  stage.innerHTML.indexOf("width:160px") > -1 &&
+  stage.innerHTML.indexOf("height:auto") > -1 &&
+  stage.innerHTML.indexOf("border-radius:8px;border:1px solid") > -1,
   "headCard 区未找到固定宽圆角边框图片");
 $("cardImg").value = "";
 $("cardImg").oninput();
-check("头部图片链接留空时回落固定尺寸占位盒（132x88，删字边框不掉）",
-  stage.innerHTML.indexOf("float:right;width:132px") > -1 &&
-  stage.innerHTML.indexOf("height:88px;line-height:88px") > -1);
+check("头部图片链接留空时回落固定尺寸占位盒（160x96，删字边框不掉）",
+  stage.innerHTML.indexOf("width:160px") > -1 &&
+  stage.innerHTML.indexOf("height:96px;line-height:96px") > -1);
 
 console.log("\n[10] 全程无脚本错误");
 check("没有未捕获异常", errors.length === 0, errors.join("; "));

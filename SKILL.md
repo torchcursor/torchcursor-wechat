@@ -3,7 +3,7 @@ name: torchcursor-wechat
 description: Convert Markdown into WeChat Official Account (公众号) ready-to-paste HTML that keeps its layout after pasting — inline-only styles, no <style>/class/id/pseudo-elements, card-and-notecard layouts, numbered sections, highlight underlines, page-tint backgrounds and ruled/grid paper backgrounds; ships a zero-dependency CLI plus a single-file browser studio with one-click style/background buttons. Use when the user wants 公众号排版, 微信排版, Markdown 转微信 HTML, 把文章做成可粘贴到公众号后台的格式, 排版控制台, or needs HTML that survives the WeChat editor's sanitizer (微信公众号粘贴兼容 / 草稿箱 / 排版美化).
 license: MIT
 metadata:
-  version: "1.6.0"
+  version: "1.6.1"
   author: TorchCursor (火把光标)
   language: zh-CN / en
   dependencies: Python 3.8+ (standard library only); studio.html needs no runtime
@@ -23,7 +23,7 @@ agent_created: true
 3. **正文不重复标题**。文稿首个 `# 一级标题` 只写入 `<title>` 与文件名，不进入正文；否则发布后会出现两个连续标题。
 4. **全文底色用「牺牲壳」双层包裹 + 逐块防断裂**。实测（2026-09-11 三轮真机）机制：粘贴时编辑器**只丢弃最外层那一个容器**，第二层及更深的 section 连同样式原样保留（头部卡片的底色就是这么活下来的）。所以最外层放不带样式的牺牲壳 `<section>`，真正的底色层放第二层；`--page-bg none` 可关闭包裹。
 5. **每个内容块都自带底色，间距一律用 padding 不用 margin**。实测（2026-09-11 第四轮真机）：底色层进微信后会被摊到每个文字块上，块与块之间的 **margin 不属于任何块、会露白**；margin 不吃背景，padding 吃。生成器用 `blockify` 把垂直 margin 折半转成 padding 并给每个块补底色，保证全文无白缝。
-6. **布局一律不用表格**。微信编辑器会把粘贴进来的表格转成自己的表格组件：出现边框、列宽错乱（实测：标题、图片全被框上方框）。图文并排用图片 `float:right` 固定像素宽 + 文字绕排（float 和 px 宽度粘贴都保留；清洗也只是退化为上下堆叠）；分节标题用纯段落堆叠。图片占位不带任何边框（虚线框粘过去会被当成小方框）。
+6. **布局一律不用表格**。微信编辑器会把粘贴进来的表格转成自己的表格组件：出现边框、列宽错乱（实测：标题、图片全被框上方框）。图文并排用 inline-block 双分栏 + 图片固定像素宽（float 文字绕排微信不认，真机实测；px 宽度粘贴保留，百分比宽度会被洗掉）；分节标题用纯段落堆叠。图片占位不带任何边框（虚线框粘过去会被当成小方框）。
 
 **为什么要自己写解析器和渲染器，而不是手写 HTML**：微信清洗规则是硬约束，靠人工每次注意必然出错；把规则写进代码 + 自检脚本，才能保证每次产出都合规。本技能自带 `scripts/generate.py`（零第三方依赖）与 `--check` 自检。
 
@@ -102,7 +102,7 @@ python3 scripts/generate.py article.md --check
 | `--accent` `--brand-color` `--bg-color` `--ink` | 强调色 / 品牌词色 / 页面底色 / 金句卡底色 |
 | `--font-size` `--line-height` | 正文字号（默认 16）、行高（默认 1.9） |
 | `--eyebrow` `--lead` `--footer` | 头部卡片眉题 / 黑底导语条 / 落款 |
-| `--card-img-url` | 头部卡片真图 URL（公众号素材库地址）：固定 132px 宽右浮动、圆角 + 细修饰边框，任何原图尺寸都渲染成同样大小的缩略图；留空回落固定 132×88 占位盒（删文字边框不掉） |
+| `--card-img-url` | 头部卡片真图 URL（公众号素材库地址）：右栏内固定 160px 宽、8px 圆角 + 细修饰边框，任何原图尺寸都渲染成同样大小的缩略图；留空回落固定 160×96 占位盒（删文字边框不掉） |
 | `--card-img` | 头部卡片图片占位文案（无 URL 时显示） |
 | `--title` `--no-card` `--no-parts` `--plain-h2` | 覆盖标题 / 关头部卡片 / 关编号分节 / 分节不用表格 |
 | `--config` `--out` `--check` | JSON 配置、输出目录、合规自检 |
@@ -151,7 +151,7 @@ python3 scripts/generate.py article.md --check
 | 粘贴后标题/图片出现小方框 | 旧版本用表格做布局会触发此问题（微信把表格转成带边框的表格组件）；用 1.2.0+（无表格布局）重新生成 |
 | 粘贴后连正文都变纯文字了 | 内容被 `<div>` 包住了——编辑器白名单没有 `div`，整段会被吞。本技能一律用 `<section>`，不要手改成 `div` |
 | 出现两个标题 | 文稿里的首个一级标题被渲染进了正文；确认用的是本技能的生成器 |
-| 头部卡片图片塌小/位置不对 | 用 1.6.0+：图片固定 132px 右浮动，不依赖父容器百分比宽度（1.5.x 的分栏百分比宽度会被微信洗掉）。真图务必填素材库 mmbiz 链接，编辑器里手动插图控制不了圆角和位置 |
+| 头部卡片图片塌小/位置不对/标题跑到图下 | 用 1.6.1+：62/38 双分栏 + 图片固定 160px（微信不认 float 绕排；图片用 width:100% 会随分栏百分比宽度被洗掉而塌小）。真图务必填素材库 mmbiz 链接，编辑器里手动插图控制不了圆角和位置 |
 | 分节编号不对 | 标题已自带编号时（`## 01 标题`）沿用原编号，否则按顺序自动编号 |
 | 控制台改了风格但 CI 报红 | `studio.html` 与 `generate.py` 的风格表漂移了；跑 `python3 scripts/check_sync.py` 看差异字段 |
 

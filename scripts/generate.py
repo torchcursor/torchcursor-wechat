@@ -31,7 +31,7 @@ import os
 import re
 import sys
 
-VERSION = "1.6.0"
+VERSION = "1.6.1"
 
 SANS = ("-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',"
         "'Hiragino Sans GB','Microsoft YaHei',sans-serif")
@@ -361,37 +361,37 @@ def part_header(num, sec_title, s, accent, muted, bg, tight=False):
 
 
 def _card_visual(card, border, muted):
-    """头部卡片右侧图片（v1.6.0 按 David 真机反馈重做）：
+    """头部卡片右侧图片（v1.6.1 按 David 真机反馈第三次调整）：
 
-    v1.4/v1.5 把图片放在 38% 宽的 inline-block 分栏里、width:100%——微信编辑器
-    粘贴时洗掉分栏的百分比宽度，图片跟着塌成一点点（"无论多大图都只有一点点"）；
-    占位框靠文字撑开，删掉文字元素变空，边框也没了。
-
-    对策（借鉴 md2wechat：图片尺寸不依赖父容器百分比宽度，用 max-width 而非
-    width:100%）：
-    - 固定像素宽 132px + float:right：px 宽度微信洗不掉，位置自动靠右，任何
-      尺寸的原图都渲染成同样大小的圆角缩略图；
-    - 真图 height:auto 保比例；占位框固定 132x88 空盒，删光文字盒子仍在。
+    v1.6.0 用 float:right 让文字绕排——真机实测微信编辑器不认文字绕排：
+    图片被当独立块，标题被挤到图下面。改回 inline-block 双分栏（第三方编辑器
+    通用做法，微信粘贴认），图片继续用固定像素宽（v1.6.0 已修的塌小根因：
+    百分比宽度会被洗掉）：
+    - 固定 160px 宽，任何尺寸原图都渲染成同样大小的圆角缩略图；
+    - 圆角 8px（David 反馈 12px 太圆）；真图 height:auto 保比例；
+    - 占位框固定 160x96 空盒，删光文字盒子仍在。
     """
     url = (card.get("img_url") or "").strip()
-    common = ('float:right;width:132px;border-radius:12px;border:1px solid %s;'
-              'box-sizing:border-box;margin:2px 0 8px 14px;' % border)
+    common = ('display:inline-block;width:160px;max-width:100%%;border-radius:8px;'
+              'border:1px solid %s;box-sizing:border-box;vertical-align:middle;'
+              % border)
     if url:
-        return ('<img src="%s" alt="" style="%sheight:auto;max-width:100%%;">'
+        return ('<img src="%s" alt="" style="%sheight:auto;">'
                 % (_html.escape(url, quote=True), common))
-    return ('<span style="%sheight:88px;line-height:88px;text-align:center;'
+    return ('<span style="%sheight:96px;line-height:96px;text-align:center;'
             'font-family:%s;font-size:12px;color:%s;">%s</span>'
             % (common, SANS, muted, _html.escape(card.get("img") or "[ 图片占位 ]")))
 
 
 def head_card(s, opts, accent, brand, muted, border):
-    """头部方框卡片：眉题 → 右浮图 + 左标题 → 清除浮动 → 落款 → 黑底导语条。
+    """头部方框卡片：眉题 → 左标题 62% + 右图 38% 双分栏（垂直居中）→ 落款 → 黑底导语条。
 
-    左右分栏不用 <table>（微信转成带边框表格组件），v1.4 起也不用 inline-block
-    百分比分栏（微信粘贴洗掉百分比宽度：图片塌小、分栏堆叠位置错乱，实测
-    2026-09-13）。改用单列流式 + 图片 float:right 固定像素宽：文字自然绕排在
-    图片左侧，分栏洗不洗掉都不影响布局；末尾放一个 clear:both 空段收住浮动，
-    防止落款/导语条绕到图片旁边。
+    布局不用 <table>（微信转成带边框表格组件）；v1.6.0 试过 float:right 文字绕排，
+    真机实测微信不认（图片变独立块、标题被挤到图下面），v1.6.1 改回 inline-block
+    双分栏——第三方编辑器（135/壹伴）的图文并排全是这个结构，微信粘贴认。
+    图片在分栏里用固定像素宽（v1.5.x 塌小的根因是图片 width:100% 依赖分栏百分比
+    宽度，不是分栏本身）。两个分栏必须写在同一行（不能有换行空白），否则
+    62%+38% 加上空白节点会被挤到两行。
     """
     ink = opts["ink"]
     card = opts["card"]
@@ -405,11 +405,13 @@ def head_card(s, opts, accent, brand, muted, border):
                  'letter-spacing:3px;margin:0;padding:18px 18px 0;">%s</p>'
                  % (SANS, muted, _html.escape(card["eyebrow"])))
     p.append(
-        '  <section style="margin:0;padding:16px 18px 0;">%s'
+        '  <section style="margin:0;padding:16px 18px 0;">'
+        '<section style="display:inline-block;width:62%%;vertical-align:middle;">'
         '<p style="font-family:%s;font-size:24px;line-height:1.45;font-weight:700;'
-        'color:#262626;margin:0;">%s</p></section>'
-        '  <section style="clear:both;height:0;line-height:0;font-size:0;">&nbsp;</section>'
-        % (_card_visual(card, border, muted), SANS, title_html))
+        'color:#262626;margin:0;padding-right:8px;">%s</p></section>'
+        '<section style="display:inline-block;width:38%%;vertical-align:middle;'
+        'text-align:right;">%s</section></section>'
+        % (SANS, title_html, _card_visual(card, border, muted)))
     if card["footer"]:
         p.append('  <p style="font-family:%s;font-size:11px;line-height:1.6;color:%s;'
                  'letter-spacing:2px;margin:0;padding:14px 18px 16px;">%s</p>'
@@ -570,6 +572,13 @@ def render(style_id, s, blocks, opts):
 
 def self_check(text):
     problems = []
+    # <img src> 的 URL 是刻意保留的：只允许公众号素材库图（mmbiz.qpic.cn，微信自家域，
+    # 粘贴后正常显示）。其余外链（script/css/@import）仍然违规。
+    text_noimg = re.sub(r"<img[^>]*>", "", text)
+    img_tags = re.findall(r"<img[^>]*>", text)
+    for tag in img_tags:
+        if re.search(r'src="https?://', tag) and not re.search(r'src="https?://mmbiz\.qpic\.cn/', tag):
+            problems.append("img 引用了非素材库图片（粘贴可能被拦截），请先用公众号素材库转存")
     for pat, label in [
         (r"<style", "<style> 标签"),
         (r'class\s*=', "class 选择器"),
@@ -582,7 +591,7 @@ def self_check(text):
         (r"%%", "字面 %% 文本"),
         (r":\s*;", "空的 CSS 声明（形如 background-color:;）"),
     ]:
-        if re.search(pat, text):
+        if re.search(pat, text_noimg):
             problems.append("含 %s" % label)
 
     for m in re.finditer(r'style="([^"]*)"', text):
