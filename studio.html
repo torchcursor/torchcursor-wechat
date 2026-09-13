@@ -56,8 +56,6 @@
   #stage{padding:0}
   .notes{margin-top:16px;font-size:12.5px;color:#7a8088;max-width:520px;line-height:1.75}
   .notes b{color:#1f2328}
-  .tile{display:flex;align-items:center;gap:10px;margin-top:8px}
-  .tile canvas{border:1px solid #e3e5e8;border-radius:8px;background:#fff}
   .warnbox{background:#fff8ef;border:1px solid #f2d9bb;border-radius:8px;padding:9px 11px;
         font-size:12.5px;color:#8a5a1c;line-height:1.6;margin-top:8px}
 </style>
@@ -81,18 +79,6 @@
     </section>
 
     <section class="grp">
-      <h2>风格</h2>
-      <div class="seg" id="segStyle"></div>
-      <p class="hint" id="styleDesc"></p>
-    </section>
-
-    <section class="grp">
-      <h2>底纹</h2>
-      <div class="seg" id="segBg"></div>
-      <p class="hint" id="bgDesc"></p>
-    </section>
-
-    <section class="grp">
       <h2>全文底色</h2>
       <div class="swatches" id="swatches"></div>
       <div class="row" style="margin-top:9px">
@@ -110,7 +96,6 @@
       </div>
       <div class="row">
         <label>导语条 <input type="color" id="ink"></label>
-        <label>底纹线 <input type="color" id="bgLine"></label>
       </div>
     </section>
 
@@ -128,28 +113,12 @@
     <section class="grp">
       <h2>头部卡片文案</h2>
       <div class="row"><input type="text" id="eyebrow" placeholder="眉题，如「火把光标 · 投放手记」"></div>
+      <div class="row"><input type="text" id="cardImg" placeholder="头部图片链接（选填，先传公众号素材库拿 mmbiz 链接）"></div>
       <div class="row"><input type="text" id="lead" placeholder="黑底导语条文案（留空则不显示）"></div>
       <div class="row"><input type="text" id="footer" placeholder="落款，如「焦作毅成重工 · 老刘」"></div>
     </section>
 
-    <section class="grp">
-      <h2>底纹图（可在后台当全文背景）</h2>
-      <div class="seg" id="segTile"></div>
-      <div class="row" style="margin-top:8px">
-        <label>格距 <input type="text" id="tileSize" value="40" style="width:56px"></label>
-        <label>线色 <input type="color" id="tileLine" value="#e6e3d8"></label>
-        <label>底色 <input type="color" id="tileBg" value="#ffffff"></label>
-      </div>
-      <div class="tile">
-        <canvas id="tileCv" width="120" height="120"></canvas>
-        <button class="btn" id="tileDown">下载 PNG</button>
-      </div>
-      <div class="warnbox">
-        公众号会清洗 <code>background-image</code>，所以<b>这张图不能靠粘贴</b>带进去。
-        正确用法：下载 PNG → 公众号后台编辑器点<b>「背景」</b>→ 上传为全文背景图。
-      </div>
-    </section>
-  </aside>
+      </aside>
 
   <main class="stageWrap">
     <div class="toolbar">
@@ -167,6 +136,11 @@
       全文底色用<b>双层包裹</b>：最外层是牺牲壳（编辑器粘贴时只丢弃最外层那一个容器），
       真正带底色的 <code>&lt;section&gt;</code> 放在第二层，跟头部卡片一样能活着进去；
       每个段落还单独补了底色、间距走 padding——块与块的间隙不会露白。<br>
+      <b>写作语法</b>：每个非空行就是一个段落（不用空行分段）。
+      <code>==文字==</code> 橙色下划线重点 · <code>**文字**</code> 加粗 ·
+      <code>&lt;r&gt;文字&lt;/r&gt;</code> 红字 · <code>&lt;l&gt;文字&lt;/l&gt;</code> 品牌色 ·
+      <code>&gt; 文字</code> 引用块 · <code>&gt; !文字</code> 黑底金句卡 ·
+      <code>![描述](图片链接)</code> 插图（链接用公众号素材库地址，图片自带圆角、坐在底色上）。<br>
       若复制失败，点「仅选中」把正文选中，再自己按 <b>Cmd+C</b>——效果一样。
     </p>
   </main>
@@ -187,96 +161,35 @@ var STYLES = {
   cardnote: {
     name: "卡片笔记",
     desc: "暖米白底、头部卡片、编号分节、下划线强调。适合观点长文、认知输出。",
-    text: "#262626", bg: "#fafaf4", muted: "#6a6b65", border: "#c0c1bb", line: "#e6e3d8",
+    text: "#333333", bg: "#fafaf4", muted: "#6a6b65", border: "#c0c1bb", line: "#e6e3d8",
     accent: "#e0a43c", brand: "#4a5bc4", ink: "#1e1f21",
     card: true,
     marks: {
-      hl: '<em style="font-style:normal;font-weight:800;color:#111111;border-bottom:3px solid {a};padding-bottom:1px;">{t}</em>',
+      hl: '<em style="font-style:normal;font-weight:800;color:#000000;border-bottom:3px solid {a};padding-bottom:1px;">{t}</em>',
       red: '<strong style="font-weight:800;color:#c00000;">{t}</strong>',
       num: '<span style="color:{a};font-weight:800;">{t}</span>',
       brand: '<span style="color:{b};font-weight:700;">{t}</span>'
     },
     css: {
-      h2: "font-size:20px;line-height:1.5;font-weight:850;margin:46px 0 16px;color:#1a1a1a;",
-      h3: "font-size:17px;line-height:1.5;font-weight:800;margin:30px 0 10px;color:#1a1a1a;",
+      h2: "font-size:20px;line-height:1.5;font-weight:700;margin:46px 0 16px;color:#262626;",
+      h3: "font-size:17px;line-height:1.5;font-weight:700;margin:30px 0 10px;color:#262626;",
       p: "margin:16px 0;line-height:1.9;",
-      blockquote: "margin:26px 0;padding:16px 18px;border-left:4px solid #3a3a3a;background-color:#f0eee8;color:#1f1f1f;font-weight:700;line-height:1.85;",
+      blockquote: "margin:26px 0;padding:16px 18px;border-left:4px solid #3a3a3a;background-color:#f0eee8;color:#404040;font-weight:700;line-height:1.85;",
       callout: "margin:26px 0;padding:16px 18px;background-color:{ink};color:#ffffff;font-weight:700;line-height:1.9;",
       ul: "margin:14px 0;padding-left:21px;",
       ol: "margin:14px 0;padding-left:21px;",
       li: "margin:8px 0;line-height:1.9;",
-      strong: "font-weight:800;color:#111111;",
-      em: "font-style:normal;font-weight:800;color:#111111;border-bottom:3px solid {a};",
+      strong: "font-weight:800;color:#000000;",
+      em: "font-style:normal;font-weight:800;color:#000000;border-bottom:3px solid {a};",
       code: "font-family:" + MONO + ";background-color:#f0eee8;color:#1a1a1a;padding:2px 6px;border-radius:3px;font-size:14px;",
       pre: "font-family:" + MONO + ";background-color:#f0eee8;color:#1a1a1a;padding:14px 16px;font-size:14px;line-height:1.6;overflow:auto;",
       hr: "border:none;border-top:1px solid #ddd8cc;margin:36px 0;"
     }
   },
-  graphite: {
-    name: "石墨工业",
-    desc: "冷、硬、克制，无彩色。适合行业分析、深度判断、B 端内容。",
-    text: "#26282b", bg: "#ffffff", muted: "#6b7075", border: "#dcdee0", line: "#e8eaec",
-    accent: "#111315", brand: "#111315", ink: "#111315",
-    card: false,
-    marks: {
-      hl: '<strong style="font-weight:850;color:#0d0f11;">{t}</strong>',
-      red: '<strong style="font-weight:850;color:#0d0f11;">{t}</strong>',
-      num: "{t}",
-      brand: '<strong style="font-weight:850;color:#0d0f11;">{t}</strong>'
-    },
-    css: {
-      h2: "font-size:19px;line-height:1.46;font-weight:800;margin:44px 0 16px;color:#111315;padding:14px 0 2px 13px;border-left:5px solid #111315;border-top:1px solid #dcdee0;",
-      h3: "font-size:17px;line-height:1.5;font-weight:750;margin:30px 0 10px;color:#33373b;",
-      p: "margin:13px 0;line-height:1.86;",
-      blockquote: "margin:22px 0;padding:14px 16px;border-left:3px solid #6b7075;background-color:#f4f5f6;color:#4a4f54;",
-      callout: "margin:22px 0;padding:14px 16px;border-left:3px solid #6b7075;background-color:#f4f5f6;color:#111315;font-weight:800;",
-      ul: "margin:13px 0;padding-left:21px;",
-      ol: "margin:13px 0;padding-left:21px;",
-      li: "margin:8px 0;line-height:1.86;",
-      strong: "font-weight:850;color:#0d0f11;",
-      em: "font-style:normal;background-color:#eceeef;padding:1px 3px;",
-      code: "font-family:" + MONO + ";background-color:#f0f1f2;color:#1a1d1f;padding:2px 6px;border-radius:3px;font-size:14px;",
-      pre: "font-family:" + MONO + ";background-color:#f0f1f2;color:#1a1d1f;padding:14px 16px;font-size:14px;line-height:1.6;overflow:auto;",
-      hr: "border:none;border-top:1px solid #dcdee0;margin:34px 0;"
-    }
-  },
-  forge: {
-    name: "熔炉橙",
-    desc: "暖、有能量、有警示感，单一强调色。适合观点输出、转化文、活动通知。",
-    text: "#2a2724", bg: "#ffffff", muted: "#7a6a5e", border: "#e7d8cb", line: "#f0e4da",
-    accent: "#c2410c", brand: "#9a3412", ink: "#8f2313",
-    card: false,
-    marks: {
-      hl: '<strong style="font-weight:850;color:{a};">{t}</strong>',
-      red: '<strong style="font-weight:850;color:{a};">{t}</strong>',
-      num: "{t}",
-      brand: '<strong style="font-weight:850;color:{b};">{t}</strong>'
-    },
-    css: {
-      h2: "font-size:19px;line-height:1.46;font-weight:800;margin:44px 0 16px;color:#1c1917;padding:13px 14px;background-color:#fdf3ec;border-left:5px solid {a};",
-      h3: "font-size:17px;line-height:1.5;font-weight:800;margin:30px 0 10px;color:#9a3412;padding-bottom:6px;border-bottom:1px dotted #e0c4b1;",
-      p: "margin:13px 0;line-height:1.86;",
-      blockquote: "margin:22px 0;padding:14px 16px;border-left:4px solid {a};background-color:#fdf3ec;color:#5a3a28;",
-      callout: "margin:22px 0;padding:14px 16px;background-color:#8f2313;color:#ffffff;font-weight:800;",
-      ul: "margin:13px 0;padding-left:21px;",
-      ol: "margin:13px 0;padding-left:21px;",
-      li: "margin:8px 0;line-height:1.86;",
-      strong: "font-weight:850;color:{a};",
-      em: "font-style:normal;color:#9a3412;background-color:#fdf3ec;padding:1px 3px;",
-      code: "font-family:" + MONO + ";background-color:#fdf3ec;color:#9a3412;padding:2px 6px;border-radius:3px;font-size:14px;",
-      pre: "font-family:" + MONO + ";background-color:#fdf3ec;color:#7c2d12;padding:14px 16px;font-size:14px;line-height:1.6;overflow:auto;",
-      hr: "border:none;height:2px;background-color:{a};margin:34px 0;width:56%;"
-    }
-  }
 };
 
-var BG_MODES = {
-  plain: "纯色底（最稳，粘贴后不变形）",
-  ruled: "横线纸：每段一条细底线，模拟笔记本横线（行内边框，粘贴可保留）",
-  grid: "方格纸：分节区块带边框、内部段落带底线，模拟方格分栏（行内边框，粘贴可保留）"
-};
 
-var DEFAULT_CARD = { eyebrow: "NOTES", lead: "", footer: "", img: "[ 图片占位 ]" };
+var DEFAULT_CARD = { eyebrow: "NOTES", lead: "", footer: "", img: "[ 图片占位 ]", imgUrl: "" };
 
 /* ---------------------------------------------------------------- 工具 */
 function esc(t) {
@@ -317,27 +230,19 @@ function inline(text, s, tk, opts) {
 }
 
 /* ---------------------------------------------------------------- Markdown 解析 */
+/* 分段规则：每个非空行就是一个段落（不做空行合并——单换行就是想分段） */
 function parseMarkdown(md) {
   var lines = String(md).replace(/\r\n/g, "\n").split("\n");
-  var title = null, blocks = [], i = 0, buf = [];
-
-  function flush() {
-    if (buf.length) {
-      var t = stripTailPeriod(buf.join(" "));
-      if (t) blocks.push(["p", t]);
-      buf = [];
-    }
-  }
+  var title = null, blocks = [], i = 0;
 
   while (i < lines.length) {
     var line = lines[i].trim();
 
-    if (!line) { flush(); i++; continue; }
-    if (line === "---" || line === "***") { flush(); blocks.push(["hr", ""]); i++; continue; }
+    if (!line) { i++; continue; }
+    if (line === "---" || line === "***") { blocks.push(["hr", ""]); i++; continue; }
 
     var m = line.match(/^(#{1,6})\s+(.*)$/);
     if (m) {
-      flush();
       var level = m[1].length, text = m[2].trim();
       if (level === 1 && title === null) title = text;
       else if (level === 2) blocks.push(["h2", text]);
@@ -346,7 +251,6 @@ function parseMarkdown(md) {
     }
 
     if (line.charAt(0) === ">") {
-      flush();
       var quote = [];
       while (i < lines.length && lines[i].trim().charAt(0) === ">") {
         quote.push(lines[i].trim().replace(/^>/, "").trim());
@@ -359,17 +263,19 @@ function parseMarkdown(md) {
     }
 
     m = line.match(/^\*([^*].*?)\*$/);
-    if (m) { flush(); blocks.push(["figcaption", m[1].trim()]); i++; continue; }
+    if (m) { blocks.push(["figcaption", m[1].trim()]); i++; continue; }
 
     if (line.indexOf("![") === 0) {
-      flush();
-      var cap = line.match(/^!\[(.*?)\]\((.*?)\)/);
-      blocks.push(["imgph", ((cap && (cap[1] || cap[2])) || "图片").trim()]);
+      var cap = line.match(/^!\[(.*?)\]\((.*?)\)\s*$/);
+      if (cap && /^https?:\/\//i.test(cap[2].trim())) {
+        blocks.push(["img", [cap[1].trim(), cap[2].trim()]]);
+      } else {
+        blocks.push(["imgph", (cap && cap[1]) || "图片"]);
+      }
       i++; continue;
     }
 
     if (/^([-*+])\s+/.test(line)) {
-      flush();
       var items = [];
       while (i < lines.length && /^([-*+])\s+/.test(lines[i].trim())) {
         items.push(lines[i].trim().replace(/^([-*+])\s+/, ""));
@@ -379,7 +285,6 @@ function parseMarkdown(md) {
     }
 
     if (/^\d+[.)]\s+/.test(line)) {
-      flush();
       var oitems = [];
       while (i < lines.length && /^\d+[.)]\s+/.test(lines[i].trim())) {
         oitems.push(lines[i].trim().replace(/^\d+[.)]\s+/, ""));
@@ -389,7 +294,6 @@ function parseMarkdown(md) {
     }
 
     if (line.charAt(0) === "|" && line.charAt(line.length - 1) === "|") {
-      flush();
       var rows = [];
       while (i < lines.length && lines[i].trim().charAt(0) === "|") {
         var cells = lines[i].trim().replace(/^\||\|$/g, "").split("|").map(function (c) { return c.trim(); });
@@ -408,10 +312,10 @@ function parseMarkdown(md) {
       continue;
     }
 
-    buf.push(line);
+    var text = stripTailPeriod(line);
+    if (text) blocks.push(["p", text]);
     i++;
   }
-  flush();
   return { title: title, blocks: blocks };
 }
 
@@ -473,20 +377,33 @@ function blockify(style, bg) {
     else if (q.length === 3) { pt = q[0]; pl = pr = q[1]; pb = q[2]; }
     else { pt = q[0]; pr = q[1]; pb = q[2]; pl = q[3]; }
   }
-  var out = ["margin:0", "padding:" + (mt + pt) + "px " + pr + "px " + (mb + pb) + "px " + pl + "px"];
+  /* v1.5.0：左右内边距下限 15px（约一个字宽）——微信可能剥掉底色层 wrapper 的
+     padding，左右留白必须直接写在每个块上，正文才不会贴边 */
+  var SIDE = 15;
+  var out = ["margin:0", "padding:" + (mt + pt) + "px " + Math.max(pr, SIDE) + "px " + (mb + pb) + "px " + Math.max(pl, SIDE) + "px"];
   if (!hasBg) out.push("background-color:" + bg);
   return out.concat(keep).join(";") + ";";
 }
 
-function partHeader(num, secTitle, s, tk, bg, tight) {
+function partHeader(num, secTitle, s, tk, bg) {
   /* 纯段落堆叠，不用表格：微信编辑器会把布局表格转成带边框的表格组件（实测）。
      每行经 blockify：margin 折半转 padding + 补全文底色（防间隙露白）。 */
-  var mt = tight ? "22px" : "48px", mb = tight ? "12px" : "18px";
+  var mt = "48px", mb = "18px";
   return [
-    '  <p style="' + blockify('font-family:' + SANS + ';font-size:24px;line-height:1.2;font-weight:850;color:#1a1a1a;margin:' + mt + ' 0 0;', bg) + '">' + num + '&nbsp;<span style="font-size:10px;font-weight:600;color:' + s.muted + ';letter-spacing:2px;">PART</span></p>',
-    '  <p style="' + blockify('font-family:' + SANS + ';font-size:21px;line-height:1.5;font-weight:850;color:#1a1a1a;margin:8px 0 0;', bg) + '">' + secTitle + '</p>',
+    '  <p style="' + blockify('font-family:' + SANS + ';font-size:24px;line-height:1.2;font-weight:700;color:#262626;margin:' + mt + ' 0 0;', bg) + '">' + num + '&nbsp;<span style="font-size:10px;font-weight:600;color:' + s.muted + ';letter-spacing:2px;">PART</span></p>',
+    '  <p style="' + blockify('font-family:' + SANS + ';font-size:21px;line-height:1.5;font-weight:700;color:#262626;margin:8px 0 0;', bg) + '">' + secTitle + '</p>',
     '  <p style="' + blockify('font-family:' + SANS + ';font-size:10px;line-height:1.5;color:' + s.muted + ';letter-spacing:3px;margin:4px 0 ' + mb + ';', bg) + '">NOTES</p>'
   ];
+}
+
+function cardVisual(card, s) {
+  /* 头部卡片右侧图片区：有 URL → 真图（圆角+细修饰边框，对齐参考样式）；
+     无 URL → 圆角占位框。行内元素，不带段间距。 */
+  var url = (card.imgUrl || "").trim();
+  if (url) {
+    return '<img src="' + esc(url) + '" alt="" style="display:inline-block;width:100%;border-radius:12px;border:1px solid ' + s.border + ';box-sizing:border-box;vertical-align:middle;">';
+  }
+  return '<span style="display:inline-block;width:100%;font-family:' + SANS + ';font-size:12px;line-height:1.7;color:' + s.muted + ';border:1px solid ' + s.border + ';border-radius:12px;padding:26px 8px;box-sizing:border-box;">' + esc(card.img || "[ 图片 ]") + '</span>';
 }
 
 function headCard(s, o, tk) {
@@ -497,7 +414,7 @@ function headCard(s, o, tk) {
   if (card.eyebrow) {
     out.push('  <p style="font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:3px;margin:0;padding:18px 18px 0;">' + esc(card.eyebrow) + '</p>');
   }
-  out.push('  <section style="display:inline-block;width:62%;vertical-align:middle;"><p style="font-family:' + SANS + ';font-size:24px;line-height:1.45;font-weight:850;color:#1a1a1a;margin:0;padding:16px 14px 0 18px;">' + inline(o.title, s, tk, o) + '</p></section><section style="display:inline-block;width:38%;vertical-align:middle;"><p style="font-family:' + SANS + ';font-size:12px;line-height:1.7;color:' + s.muted + ';text-align:center;margin:0;padding:16px 18px 0 0;">' + esc(card.img) + '</p></section>');
+  out.push('  <section style="display:inline-block;width:62%;vertical-align:middle;"><p style="font-family:' + SANS + ';font-size:24px;line-height:1.45;font-weight:700;color:#262626;margin:0;padding:16px 14px 0 18px;">' + inline(o.title, s, tk, o) + '</p></section><section style="display:inline-block;width:38%;vertical-align:middle;"><p style="text-align:center;margin:0;padding:0 18px 0 0;">' + cardVisual(card, s) + '</p></section>');
   if (card.footer) {
     out.push('  <p style="font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:2px;margin:0;padding:14px 18px 16px;">' + esc(card.footer) + '</p>');
   }
@@ -517,7 +434,7 @@ function renderBlock(kind, payload, s, o, tk, paraExtra, secRef) {
       var m = payload.match(/^(\d+)\s*[.、|｜]?\s*(.*)$/), num, sec;
       if (m) { num = m[1]; sec = m[2]; }
       else { secRef.n++; num = (secRef.n < 10 ? "0" : "") + secRef.n; sec = payload; }
-      return partHeader(num, esc(sec), s, tk, bg, o.bg === "grid");
+      return partHeader(num, esc(sec), s, tk, bg);
     }
     return ['  <h2 style="' + blockify(st(s, "h2", tk, fs, lh), bg) + '">' + esc(payload) + '</h2>'];
   }
@@ -535,6 +452,10 @@ function renderBlock(kind, payload, s, o, tk, paraExtra, secRef) {
   }
   if (kind === "hr") {
     return ['  <hr style="' + blockify(st(s, "hr", tk, fs, lh), bg) + '">'];
+  }
+  if (kind === "img") {
+    /* 真图：圆角 <img> 嵌进带底色的 section（URL 用公众号素材库地址） */
+    return ['  <section style="' + blockify("margin:24px 0;", bg) + '"><img src="' + esc(payload[1]) + '" alt="' + esc(payload[0]) + '" style="display:block;width:100%;border-radius:12px;"></section>'];
   }
   if (kind === "imgph") {
     /* 图片占位不带边框：参考成品里图片没有框，虚线框粘过去会被当成小方框 */
@@ -566,40 +487,23 @@ function articleHTML(UI) {
   var pageBg = (UI.pageBg === "none") ? s.bg : UI.pageBg;
   var tk = { a: UI.accent || s.accent, b: UI.brandColor || s.brand, ink: UI.ink || s.ink };
   var o = {
-    bg: UI.bg, fontSize: UI.fontSize, lineHeight: UI.lineHeight, parts: UI.parts,
-    plainH2: !!UI.plainH2, lineColor: UI.bgLine || s.line,
+    fontSize: UI.fontSize, lineHeight: UI.lineHeight, parts: UI.parts,
+    plainH2: !!UI.plainH2,
     title: UI.title || doc.title || "文章标题", pageBgColor: pageBg,
-    cardCfg: { eyebrow: UI.eyebrow, lead: UI.lead, footer: UI.footer, img: DEFAULT_CARD.img }
+    cardCfg: { eyebrow: UI.eyebrow, lead: UI.lead, footer: UI.footer, img: DEFAULT_CARD.img, imgUrl: UI.cardImg }
   };
-  var paraExtra = (o.bg === "ruled" || o.bg === "grid")
-    ? "padding-bottom:12px;border-bottom:1px solid " + o.lineColor + ";" : "";
 
   var parts = [];
   var secRef = { n: 0 };
   if (s.card && UI.card) parts = parts.concat(headCard(s, o, tk));
 
-  var groups = [], cur = [];
   doc.blocks.forEach(function (b) {
-    if (b[0] === "h2" && cur.length) { groups.push(cur); cur = []; }
-    cur.push(b);
-  });
-  if (cur.length) groups.push(cur);
-
-  groups.forEach(function (group) {
-    var wrap = o.bg === "grid";
-    if (wrap) {
-      /* grid 分节边框同样做防断裂处理：margin 转 padding + 补底色 */
-      parts.push('<section style="' + blockify('border:1px solid ' + o.lineColor + ';border-radius:6px;padding:2px 16px 14px;margin:26px 0;', o.pageBgColor) + '">');
-    }
-    group.forEach(function (b) {
-      parts = parts.concat(renderBlock(b[0], b[1], s, o, tk, paraExtra, secRef));
-    });
-    if (wrap) parts.push('</section>');
+    parts = parts.concat(renderBlock(b[0], b[1], s, o, tk, "", secRef));
   });
 
   if (UI.pageBg === "none") return parts.join("\n");
   return "<section>\n"
-    + '<section style="background-color:' + UI.pageBg + ';padding:28px 22px;">\n'
+    + '<section style="background-color:' + UI.pageBg + ';padding:24px 16px;">\n'
     + parts.join("\n") + "\n</section>\n</section>";
 }
 
@@ -609,12 +513,11 @@ var UI = {
   styleId: "cardnote",
   bg: "plain",
   pageBg: "#fafaf4",
-  accent: "", brandColor: "", ink: "", bgLine: "",
+  accent: "", brandColor: "", ink: "",
   fontSize: 16, lineHeight: 1.9,
   parts: true, card: true,
-  eyebrow: DEFAULT_CARD.eyebrow, lead: "", footer: "",
+  eyebrow: DEFAULT_CARD.eyebrow, lead: "", footer: "", cardImg: "",
   title: "",
-  tilePattern: "grid", tileSize: 40, tileLine: "#e6e3d8", tileBg: "#ffffff"
 };
 
 var SWATCHES = [
@@ -669,16 +572,10 @@ function seg(container, items, current, onPick) {
     container.appendChild(b);
   });
 }
-function pickStyle(id) { UI.styleId = id; UI.accent = ""; UI.brandColor = ""; UI.ink = ""; UI.bgLine = ""; syncAll(); }
-function pickBg(id) { UI.bg = id; syncAll(); }
 function pickPageBg(v) { UI.pageBg = v; syncAll(); }
 function syncAll() {
   var s = STYLES[UI.styleId];
   if (UI.pageBg === "none") { /* 保留用户选择 */ }
-  seg($("segStyle"), Object.keys(STYLES).map(function (k) { return { label: STYLES[k].name, value: k }; }), UI.styleId, pickStyle);
-  $("styleDesc").textContent = s.desc;
-  seg($("segBg"), Object.keys(BG_MODES).map(function (k) { return { label: { plain: "无底纹", ruled: "横线纸", grid: "方格纸" }[k], value: k }; }), UI.bg, pickBg);
-  $("bgDesc").textContent = BG_MODES[UI.bg];
   seg($("segFont"), [15, 16, 17, 18].map(function (n) { return { label: n + "px", value: n }; }), UI.fontSize, function (v) { UI.fontSize = v; syncAll(); });
   seg($("segLh"), [1.8, 1.9, 2.0].map(function (n) { return { label: String(n), value: n }; }), UI.lineHeight, function (v) { UI.lineHeight = v; syncAll(); });
   seg($("segToggles"), [
@@ -688,10 +585,6 @@ function syncAll() {
     if (v === "card") UI.card = !UI.card; else UI.parts = !UI.parts;
     syncAll();
   });
-  seg($("segTile"), [
-    { label: "方格", value: "grid" }, { label: "横线", value: "ruled" }, { label: "点阵", value: "dots" }
-  ], UI.tilePattern, function (v) { UI.tilePattern = v; syncAll(); });
-
   $("swatches").innerHTML = "";
   SWATCHES.forEach(function (sw) {
     var b = document.createElement("button");
@@ -711,11 +604,9 @@ function syncAll() {
   if (!UI.accent) $("accent").value = s.accent;
   if (!UI.brandColor) $("brandColor").value = s.brand;
   if (!UI.ink) $("ink").value = s.ink;
-  if (!UI.bgLine) $("bgLine").value = s.line;
 
   calcPageBgForCard();
   paint();
-  drawTile();
 }
 
 function calcPageBgForCard() {
@@ -729,39 +620,6 @@ function paint() {
   stage.innerHTML = articleHTML(UI);
   // 预览容器底色与全文底色一致，边缘无缝（底色本体由内层 section 承载并随粘贴保留）
   stage.style.backgroundColor = (UI.pageBg === "none") ? STYLES[UI.styleId].bg : UI.pageBg;
-}
-
-/* ---------------------------------------------------------------- 底纹图 */
-function drawTile() {
-  var cv = $("tileCv"), ctx = cv.getContext && cv.getContext("2d");
-  if (!ctx) return;
-  var size = Math.max(6, Math.min(120, parseInt($("tileSize").value || "40", 10) || 40));
-  var scale = 3, tile = size * scale;
-  cv.width = tile; cv.height = tile;
-  ctx.fillStyle = $("tileBg").value; ctx.fillRect(0, 0, tile, tile);
-  ctx.strokeStyle = $("tileLine").value;
-  ctx.fillStyle = $("tileLine").value;
-  ctx.lineWidth = 1;
-  if (UI.tilePattern === "grid") {
-    ctx.beginPath();
-    for (var i = 0; i <= scale; i++) {
-      ctx.moveTo(i * size + 0.5, 0); ctx.lineTo(i * size + 0.5, tile);
-      ctx.moveTo(0, i * size + 0.5); ctx.lineTo(tile, i * size + 0.5);
-    }
-    ctx.stroke();
-  } else if (UI.tilePattern === "ruled") {
-    ctx.beginPath();
-    for (var j = 0; j <= scale; j++) { ctx.moveTo(0, j * size + 0.5); ctx.lineTo(tile, j * size + 0.5); }
-    ctx.stroke();
-  } else {
-    for (var a = 0; a < scale; a++) {
-      for (var b = 0; b < scale; b++) {
-        ctx.beginPath();
-        ctx.arc(a * size + size / 2, b * size + size / 2, Math.max(1, size / 18), 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  }
 }
 
 /* ---------------------------------------------------------------- 动作 */
@@ -803,22 +661,11 @@ $("dlBtn").onclick = function () {
   var url = URL.createObjectURL(new Blob([doc], { type: "text/html;charset=utf-8" }));
   var a = document.createElement("a");
   a.href = url;
-  a.download = (UI.title || "公众号文章") + "_" + UI.styleId + "_" + UI.bg + ".html";
+  a.download = (UI.title || "公众号文章") + "_" + UI.styleId + ".html";
   a.click();
   setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
   status("已下载 HTML");
 };
-$("tileDown").onclick = function () {
-  var cv = $("tileCv");
-  if (!cv.toDataURL) { status("该浏览器不支持导出底纹图", true); return; }
-  var a = document.createElement("a");
-  a.href = cv.toDataURL("image/png");
-  a.download = "bg-" + UI.tilePattern + "-" + $("tileSize").value + ".png";
-  a.click();
-  status("底纹图已下载（注：多数公众号后台没有背景上传入口，仅适用于支持自定义背景的编辑器）");
-};
-
-/* ---------------------------------------------------------------- 事件绑定 */
 $("loadSample").onclick = function () { $("md").value = SAMPLE; syncAll(); };
 $("file").onchange = function (e) {
   var f = e.target.files && e.target.files[0];
@@ -828,21 +675,13 @@ $("file").onchange = function (e) {
   fr.readAsText(f, "utf-8");
 };
 $("md").oninput = function () { paint(); };
-["accent", "brandColor", "ink", "bgLine"].forEach(function (id) {
+["accent", "brandColor", "ink"].forEach(function (id) {
   $(id).oninput = function () { UI[id] = $(id).value; paint(); };
 });
 $("pageBg").oninput = function () { UI.pageBg = $("pageBg").value; paint(); };
-["eyebrow", "lead", "footer"].forEach(function (id) {
+["eyebrow", "lead", "footer", "cardImg"].forEach(function (id) {
   $(id).oninput = function () { UI[id] = $(id).value; paint(); };
 });
-["tileSize", "tileLine", "tileBg"].forEach(function (id) {
-  $(id).oninput = function () {
-    UI[id] = $(id).value;
-    if (UI.tilePattern) { }
-    drawTile();
-  };
-});
-$("tileSize").oninput = function () { UI.tileSize = $("tileSize").value; drawTile(); };
 
 $("md").value = SAMPLE;
 syncAll();

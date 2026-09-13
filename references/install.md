@@ -71,7 +71,7 @@ mkdir -p .claude/skills && cp -r torchcursor-wechat .claude/skills/
 - **豆包电脑版支持「技能」**：侧栏「技能 · 连接器 · 伙伴」→ 新建技能 → 把 `SKILL.md` 全文粘进技能正文。网页版不能稳定创建技能。
 - **但豆包读不到你本地的 `scripts/`**：它的技能本质是一段长期指令，不是本地运行时。所以：
   - ✅ 排版**规范**能生效（它会按本技能的风格与红线帮你手工产出 HTML）
-  - ❌ `generate.py` / `make_bg_tile.py` **跑不起来**，产出的合规性没有 `--check` 兜底
+  - ❌ `generate.py` **跑不起来**，产出的合规性没有 `--check` 兜底
 - **要完整能力，用能跑本地命令的客户端**（Claude Code / Codex CLI / Cursor / WorkBuddy）。
 
 同类情况：纯云端聊天产品（网页版豆包、文心、通义）都无法直接加载本地技能目录，只能把 SKILL.md 内容当提示词用。
@@ -81,7 +81,7 @@ mkdir -p .claude/skills && cp -r torchcursor-wechat .claude/skills/
 | 部分 | 依赖 |
 |---|---|
 | `studio.html` | **无**。单文件，浏览器双击即用，可离线 |
-| `scripts/generate.py` / `make_bg_tile.py` | Python 3.8+，**仅标准库**，无需 pip install |
+| `scripts/generate.py` | Python 3.8+，**仅标准库**，无需 pip install |
 | `scripts/check_sync.py` / `test_studio.js` | Node.js（仅开发者与 CI 需要；`test_studio.js` 另需 `npm i jsdom`） |
 
 ## 验证装好了

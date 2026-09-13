@@ -39,10 +39,10 @@ Markdown  →  点按钮排版 / 一行命令  →  Cmd+A / Cmd+C  →  粘贴�
 git clone https://github.com/torchcursor/torchcursor-wechat.git
 cd torchcursor-wechat
 
-python3 scripts/generate.py examples/sample-article.md --style all --config examples/torchcursor.config.json --check
+python3 scripts/generate.py examples/sample-article.md --check
 ```
 
-打开 `examples/output/00_风格总览_plain.html` 比较风格，然后：
+打开 `examples/output/sample-article_cardnote.html` 查看样张，然后：
 
 1. 在浏览器打开选定的 HTML
 2. `Cmd+A` 全选，`Cmd+C` 复制
@@ -51,13 +51,11 @@ python3 scripts/generate.py examples/sample-article.md --style all --config exam
 
 > 两条路是**同一套规则的两份实现**，渲染结果逐字节一致，由 `scripts/check_sync.py` 在 CI 中锁死。
 
-## 三种风格
+## 唯一风格：卡片笔记
 
-| style id | 名称 | 气质 | 适用 |
-|---|---|---|---|
-| `cardnote` | 卡片笔记 | 暖米白底、头部方框卡片、编号分节、下划线强调 | 观点长文、认知输出、系列专栏（默认） |
-| `graphite` | 石墨工业 | 冷、硬、克制，无彩色 | 行业分析、深度判断、B 端内容 |
-| `forge` | 熔炉橙 | 暖、有能量，单一强调色 | 观点输出、转化文、活动通知 |
+`cardnote`（卡片笔记）：暖米白底、头部方框卡片（圆角图片位）、编号分节、橙色下划线强调。
+排版基调（1.5.0 定稿）：正文 80% 黑 `#333333`、标题 90% 黑 `#262626`（字重 700）、
+重点标注 100% 黑、每个块左右留白 ≥15px 不贴边。
 
 ## 背景：三层，别搞混
 
@@ -65,9 +63,7 @@ python3 scripts/generate.py examples/sample-article.md --style all --config exam
 
 | 层 | 实现 | 能否粘贴带入 | 怎么用 |
 |---|---|---|---|
-| **全文底色** | 牺牲壳双层包裹（底色在第二层 section） | **能**（机制推导，持续真机复核） | 默认开启；`--page-bg none` 关闭 |
-| **结构底纹** | 行内边框模拟：`ruled` 每段一条细底线（横线纸）；`grid` 分节区块带边框 + 内部段落底线（方格纸） | **能** | `--bg ruled` / `--bg grid` |
-| **画面底纹** | 真正可平铺的底纹图 | **不能** | `make_bg_tile.py` 生成 PNG，仅适用于支持自定义背景上传的第三方编辑器；公众号后台没有该入口 |
+| **全文底色** | 牺牲壳双层包裹（底色在第二层 section）+ 每块单独补底色 | **能**（真机已验证） | 默认开启；`--page-bg none` 关闭 |
 
 实测能保留的彩色背景：**第二层及更深元素**的背景——全文底色层、头部卡片、黑底导语条、金句卡、引用块。
 
@@ -77,23 +73,19 @@ python3 scripts/generate.py examples/sample-article.md --style all --config exam
 - **间隙露白 = margin 不吃背景**。1.2.0 双层包裹后底色进去了，但段落间隙还是白的——底色被摊到每个文字块上，块间 margin 不属于任何块。1.3.0 起所有间距改走 padding、每个块单独补底色，全文无白缝。
 - **布局表格 = 被转成表格组件**。头部卡片的图文表格，粘贴后标题、图片全被框上方框。布局一律不用表格，改用 `inline-block` 分栏（清洗后优雅退化成上下堆叠）。
 
-```bash
-# 生成三种主题的方格 / 横线 / 点阵底纹（平铺图）
-python3 scripts/make_bg_tile.py --pattern grid  --size 40 --all-themes --out assets
-python3 scripts/make_bg_tile.py --pattern ruled --size 32 --all-themes --out assets
-python3 scripts/make_bg_tile.py --pattern dots  --size 24 --theme cardnote --out assets
-```
+> 底纹功能（横线纸/方格纸/PNG 底图）已于 1.5.0 移除：背景图必被微信清洗、后台无背景上传入口。
 
 ## 常用参数
 
 ```bash
-# 自定义强调色 / 品牌词色 / 底色 / 线色
-python3 scripts/generate.py article.md --accent "#c2410c" --brand-color "#1d4ed8" \
-  --bg-color "#fafaf4" --bg-line "#e6e3d8"
+# 自定义强调色 / 品牌词色 / 底色
+python3 scripts/generate.py article.md --accent "#e0a43c" --brand-color "#4a5bc4" \
+  --bg-color "#fafaf4"
 
-# 头部卡片文案（cardnote 风格）
+# 头部卡片文案 + 头图（先传公众号素材库拿 mmbiz 链接）
 python3 scripts/generate.py article.md --eyebrow "NOTES · 你的品牌" \
-  --lead "一句话导语" --footer "你的落款" --card-img "[ 头图占位 ]"
+  --lead "一句话导语" --footer "你的落款" \
+  --card-img-url "https://mmbiz.qpic.cn/....jpg"
 
 # 字号行高、关掉编号分节 / 头部卡片
 python3 scripts/generate.py article.md --font-size 17 --line-height 1.95 --no-parts
@@ -139,19 +131,17 @@ torchcursor-wechat/
 ├── LICENSE                     # MIT
 ├── scripts/
 │   ├── generate.py             # Markdown → 微信可粘贴 HTML
-│   ├── make_bg_tile.py         # 生成可平铺底纹 PNG（手写 PNG 编码，零依赖）
 │   ├── check_sync.py           # 校验 generate.py 与 studio.html 是否漂移（CI 必跑）
 │   └── test_studio.js          # 控制台真机验证（jsdom 模拟点按钮）
 ├── references/
 │   ├── install.md              # 安装到各家 AI 客户端
-│   ├── styles.md               # 三种风格的完整 CSS 设计源
+│   ├── styles.md               # 卡片笔记风格的完整 CSS 设计源
 │   ├── customize.md            # 参数手册 / 配置文件 / 新增风格
 │   └── wechat-limits.md        # 微信粘贴红线、背景三层真相、已知回落项
 ├── examples/
 │   ├── sample-article.md
 │   ├── torchcursor.config.json
 │   └── output/                 # 生成样张（可直接对比）
-└── assets/                     # 预生成的底纹 PNG
 ```
 
 ## Markdown 支持速查
@@ -173,7 +163,7 @@ torchcursor-wechat/
 
 Why it exists: the WeChat editor strips `<head><style>` on copy and sanitizes the pasted HTML/CSS again. Generic Markdown-to-HTML tools lose headings, backgrounds and emphasis. This tool inlines every visible style per element, forbids `<style>` / class / id / pseudo-elements / external assets, drops the leading `# H1` from the body (so you don't get a duplicated title), and ships a `--check` linter for the paste-safety rules.
 
-Three styles (`cardnote`, `graphite`, `forge`), three background modes (`plain`, `ruled`, `grid`), a page-tint carried by an outer `<section>` (the only element WeChat's ProseMirror whitelist accepts for backgrounds — put it on `<body>` and it is lost; put content in a `<div>` and the whole block gets swallowed), a JSON config for stable column branding, and a dependency-free PNG generator for real tiled paper textures you apply via the editor's own background setting.
+One style (`cardnote`), a page-tint carried by an inner `<section>` (the only element WeChat's ProseMirror whitelist accepts for backgrounds — put it on `<body>` and it is lost; put content in a `<div>` and the whole block gets swallowed), a JSON config for stable column branding, and a dependency-free PNG generator for real tiled paper textures you apply via the editor's own background setting.
 
 Two front ends, one ruleset: a zero-dependency CLI (`scripts/generate.py`) and a single-file browser studio (`studio.html`, double-click to open, click buttons to restyle, live preview, one-click copy). A CI check (`scripts/check_sync.py`) asserts both render byte-identical output.
 

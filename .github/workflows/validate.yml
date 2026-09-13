@@ -25,29 +25,16 @@ jobs:
       - name: 两套实现同步校验（generate.py ↔ studio.html）
         run: python3 scripts/check_sync.py
 
-      - name: 生成全部风格与底纹组合（含微信粘贴合规自检）
+      - name: 生成样张（含微信粘贴合规自检）
         run: |
           set -e
-          for bg in plain ruled grid; do
-            python3 scripts/generate.py examples/sample-article.md \
-              --style all --bg "$bg" \
-              --config examples/torchcursor.config.json \
-              --out /tmp/out --check
-          done
+          python3 scripts/generate.py examples/sample-article.md --out /tmp/out --check
 
       - name: 控制台真机验证（jsdom 点按钮）
         run: |
           set -e
           npm install jsdom --no-save --silent
           node scripts/test_studio.js
-
-      - name: 生成底纹图（验证零依赖 PNG 编码）
-        run: |
-          set -e
-          python3 scripts/make_bg_tile.py --pattern grid  --size 40 --all-themes --out /tmp/tiles
-          python3 scripts/make_bg_tile.py --pattern ruled --size 32 --all-themes --out /tmp/tiles
-          python3 scripts/make_bg_tile.py --pattern dots  --size 24 --theme cardnote --out /tmp/tiles
-          ls -la /tmp/tiles
 
       - name: 检查 SKILL.md frontmatter
         run: |

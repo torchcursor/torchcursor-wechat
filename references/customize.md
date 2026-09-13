@@ -16,10 +16,10 @@
 
 | 参数 | 说明 | 常用值 |
 |---|---|---|
-| `--style` | 风格 | `cardnote` / `graphite` / `forge` / `all` |
+| `--style` | 风格（1.5.0 起仅 `cardnote`） | `cardnote` |
 | `--bg` | 底纹模式 | `plain` / `ruled` / `grid` |
-| `--accent` | 强调色（下划线、编号、竖线、分隔线） | cardnote `#e0a43c` / forge `#c2410c` |
-| `--brand-color` | 品牌词、链接词颜色 | cardnote `#4a5bc4` / forge `#9a3412` |
+| `--accent` | 强调色（下划线、编号） | 默认 `#e0a43c` |
+| `--brand-color` | 品牌词、链接词颜色 | 默认 `#4a5bc4` |
 | `--bg-color` | 页面底色 | `#ffffff` / `#fafaf4` |
 | `--bg-line` | 结构底纹线色 | `#e6e3d8` / `#e8eaec` / `#f4e2d6` |
 | `--ink` | 金句卡 / 导语条底色 | `#1e1f21` / `#8f2313` |

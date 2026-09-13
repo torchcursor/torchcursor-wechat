@@ -1,11 +1,9 @@
 {
   "_说明": "torchcursor-wechat 配置示例。CLI 参数优先于本文件；本文件优先于内置默认值。",
   "style": "cardnote",
-  "bg": "plain",
   "accent": "#e0a43c",
   "brand_color": "#4a5bc4",
   "bg_color": "#fafaf4",
-  "bg_line": "#e6e3d8",
   "ink": "#1e1f21",
   "font_size": 16,
   "line_height": 1.9,
@@ -14,6 +12,7 @@
     "eyebrow": "NOTES · 火把光标",
     "lead": "工厂拍娱乐段子的问题，不在于形式，而在于对「流量」的误判。这篇把三层误判拆开讲透。",
     "footer": "火把光标 · 工业品获客实战笔记",
-    "img": "[ 图片占位：头图，建议 1:1 ]"
+    "img": "[ 图片占位：头图，建议 1:1 ]",
+    "img_url": ""
   }
 }

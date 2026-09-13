@@ -46,8 +46,6 @@ console.log("控制台真机验证\n");
 
 console.log("[1] 初始化");
 check("脚本无运行时错误", errors.length === 0, errors.join("; "));
-check("控制台 UI 按钮已生成", $("segStyle").querySelectorAll("button").length === 3);
-check("底纹按钮 3 个", $("segBg").querySelectorAll("button").length === 3);
 check("底色色板 7 个", $("swatches").querySelectorAll("button").length === 7);
 check("预览区已渲染内容", stage.innerHTML.length > 500);
 
@@ -69,34 +67,24 @@ check("编号分节标题为段落堆叠（编号+PART 同段）",
   stage.innerHTML.indexOf(">01&nbsp;<span") > -1);
 check("正文有内容（段落/分节）", stage.innerHTML.indexOf("PART") > -1 && stage.innerHTML.indexOf("<p ") > -1);
 
-console.log("\n[3] 点按钮切风格");
-clickByText("segStyle", "熔炉橙");
-check("切到熔炉橙后强调色变了", stage.innerHTML.indexOf("#c2410c") > -1);
-check("熔炉橙不渲染头部卡片",
-  stage.innerHTML.indexOf("border-radius:6px;background-color") === -1);
-clickByText("segStyle", "卡片笔记");
-check("切回卡片笔记后有头部卡片",
-  stage.innerHTML.indexOf("border-radius:6px;background-color") > -1);
-
-console.log("\n[4] 点按钮切底纹");
-clickByText("segBg", "横线纸");
-const ruled = (stage.innerHTML.match(/border-bottom:1px solid #e6e3d8/g) || []).length;
-const ruledBg = (stage.innerHTML.match(/background-color:#fafaf4[^"]*border-bottom:1px solid #e6e3d8/g) || []).length;
-check("横线纸：正文段落带细底线且每条线所在块都有底色（margin 已转 padding 防露白）",
-  ruled >= 3 && ruledBg === ruled,
-  "细线数=" + ruled + " 带底色=" + ruledBg);
-clickByText("segBg", "方格纸");
-check("方格纸：出现分节边框区块", stage.innerHTML.indexOf("border:1px solid #e6e3d8;border-radius:6px") > -1);
-clickByText("segBg", "无底纹");
-check("回到无底纹：正文无段落底线",
-  (stage.innerHTML.match(/padding-bottom:12px;border-bottom/g) || []).length === 0);
+console.log("\n[3] v1.5.0：单风格 + 无底纹 + 排版参数");
+check("只剩卡片笔记一个风格", Object.keys(win.STYLES).length === 1 && !!win.STYLES.cardnote,
+  Object.keys(win.STYLES).join(","));
+check("正文颜色 80% 黑 #333333", stage.innerHTML.indexOf("color:#333333") > -1);
+check("标题字重 700（不再 850 挤成一团）",
+  stage.innerHTML.indexOf("font-weight:850") === -1 && stage.innerHTML.indexOf("font-weight:700") > -1);
+check("重点标注 100% 黑", stage.innerHTML.indexOf("color:#000000") > -1);
+check("每个块左右内边距 ≥15px（不贴边）", /padding:\d+px 15px \d+px 15px/.test(stage.innerHTML));
+check("无底纹残留（无段落底线/分节边框）",
+  stage.innerHTML.indexOf("border-bottom:1px solid #e6e3d8") === -1 &&
+  stage.innerHTML.indexOf("border:1px solid #e6e3d8;border-radius:6px") === -1);
 
 console.log("\n[5] 点色板换全文底色（双层包裹随粘贴保留）");
 clickByValue("swatches", "#f2f6fb");
 check("预览底色切成淡蓝 #f2f6fb", (stage.style.backgroundColor || "").indexOf("242, 246, 251") > -1,
   stage.style.backgroundColor);
 check("粘贴内容里底色层换成淡蓝",
-  stage.innerHTML.indexOf('<section style="background-color:#f2f6fb;padding:28px 22px;">') > -1);
+  stage.innerHTML.indexOf('<section style="background-color:#f2f6fb;padding:24px 16px;">') > -1);
 check("色板联动文字标签", $("pageBgLabel").textContent.indexOf("#f2f6fb") > -1,
   $("pageBgLabel").textContent);
 clickByValue("swatches", "none");
@@ -135,7 +123,31 @@ catch (e) { check("仅选中按钮可点击", false, e.message); }
 try { $("loadSample").click(); check("载入示例按钮可点击", stage.innerHTML.indexOf("三点打破工厂对流量的幻觉") > -1); }
 catch (e) { check("载入示例按钮可点击", false, e.message); }
 
-console.log("\n[9] 全程无脚本错误");
+console.log("\n[9] v1.4.0：单行分段 + 真实图片 + 头部图片链接");
+$("md").value = "第一行内容\n第二行内容\n![配图](https://mmbiz.qpic.cn/x.jpg)\n![占位](说明文字)";
+win.paint();
+const ps = Array.from(stage.querySelectorAll("p")).map(p => p.textContent);
+check("单换行即分段（两行各自成段，不再并成一大段）",
+  ps.some(t => t.indexOf("第一行内容") > -1) && ps.some(t => t.indexOf("第二行内容") > -1) &&
+  !ps.some(t => t.indexOf("第一行内容") > -1 && t.indexOf("第二行内容") > -1),
+  JSON.stringify(ps.slice(0, 4)));
+const bodyImg = stage.querySelector('img[src="https://mmbiz.qpic.cn/x.jpg"]');
+check("正文真实图片：带 URL 的 ![描述](链接) 渲染为圆角 <img>",
+  !!bodyImg && bodyImg.getAttribute("style").indexOf("border-radius:12px") > -1,
+  bodyImg ? bodyImg.getAttribute("style") : "未找到 img");
+check("无 URL 的 ![占位](说明) 仍是文字占位框",
+  stage.innerHTML.indexOf("[ 图片：占位 ]") > -1 || stage.innerHTML.indexOf("占位") > -1);
+$("cardImg").value = "https://mmbiz.qpic.cn/top.jpg";
+$("cardImg").oninput();
+check("头部图片链接：有 URL 渲染真图（圆角 + 细修饰边框）",
+  stage.innerHTML.indexOf('border-radius:12px;border:1px solid') > -1,
+  "headCard 区未找到圆角边框图片");
+$("cardImg").value = "";
+$("cardImg").oninput();
+check("头部图片链接留空时回落圆角占位框",
+  stage.innerHTML.indexOf("border-radius:12px;padding:26px 8px") > -1);
+
+console.log("\n[10] 全程无脚本错误");
 check("没有未捕获异常", errors.length === 0, errors.join("; "));
 
 console.log("\n结果：" + pass + " 通过 / " + fail + " 失败");

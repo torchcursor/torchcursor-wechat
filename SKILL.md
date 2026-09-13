@@ -3,7 +3,7 @@ name: torchcursor-wechat
 description: Convert Markdown into WeChat Official Account (公众号) ready-to-paste HTML that keeps its layout after pasting — inline-only styles, no <style>/class/id/pseudo-elements, card-and-notecard layouts, numbered sections, highlight underlines, page-tint backgrounds and ruled/grid paper backgrounds; ships a zero-dependency CLI plus a single-file browser studio with one-click style/background buttons. Use when the user wants 公众号排版, 微信排版, Markdown 转微信 HTML, 把文章做成可粘贴到公众号后台的格式, 排版控制台, or needs HTML that survives the WeChat editor's sanitizer (微信公众号粘贴兼容 / 草稿箱 / 排版美化).
 license: MIT
 metadata:
-  version: "1.3.0"
+  version: "1.5.0"
   author: TorchCursor (火把光标)
   language: zh-CN / en
   dependencies: Python 3.8+ (standard library only); studio.html needs no runtime
@@ -31,8 +31,8 @@ agent_created: true
 
 | 用法 | 入口 | 适合 |
 |---|---|---|
-| 命令行 | `scripts/generate.py` | AI/脚本调用、批量出多风格、固定栏目配置 |
-| **可视化控制台** | `studio.html`（单文件、零依赖、双击即开） | 人在调样式：点按钮换风格/底纹/底色，右侧实时预览，一键复制 |
+| 命令行 | `scripts/generate.py` | AI/脚本调用、批量生成、固定栏目配置 |
+| **可视化控制台** | `studio.html`（单文件、零依赖、双击即开） | 人在调样式：点按钮换底色/字号，右侧实时预览，一键复制 |
 
 控制台与命令行是**同一套规则的两种实现**（同一份风格 token、同一套 Markdown 规则），渲染结果逐字节一致，由 `scripts/check_sync.py` 在 CI 里锁死。改风格必须同时改两处，否则 CI 会红。
 
@@ -40,51 +40,42 @@ agent_created: true
 
 - 用户要把写好的一篇文章 / 口播稿 / 长文做成公众号可粘贴的 HTML
 - 用户抱怨"排版粘贴到公众号就乱了""样式丢了""底色没了"
-- 用户要一条固定栏目视觉（标题卡片、编号分节、强调下划线、全文底色、横线纸/方格纸底纹）
+- 用户要一条固定栏目视觉（标题卡片、编号分节、强调下划线、全文底色）
 - 用户要**点按钮**调排版而不是记命令 → 直接用 `studio.html`
-- 用户要批量生成多个风格让编辑挑选
 
 ## 快速开始
 
 ```bash
-# 单风格
-python3 scripts/generate.py article.md --style cardnote
-
-# 全部风格 + 风格总览页
-python3 scripts/generate.py article.md --style all --bg plain
+# 默认即卡片笔记风格（唯一风格）
+python3 scripts/generate.py article.md
 
 # 全文底色：默认 auto（双层牺牲壳包裹，随粘贴保留）
-python3 scripts/generate.py article.md --style cardnote
+python3 scripts/generate.py article.md
 
 # 关闭包裹（白底直出）
-python3 scripts/generate.py article.md --style cardnote --page-bg none
+python3 scripts/generate.py article.md --page-bg none
 
-# 横线纸 / 方格纸底纹
-python3 scripts/generate.py article.md --style cardnote --bg ruled
-python3 scripts/generate.py article.md --style cardnote --bg grid
+# 头部卡片真图（先传公众号素材库拿 mmbiz 链接）
+python3 scripts/generate.py article.md --card-img-url "https://mmbiz.qpic.cn/....jpg"
 
 # 用配置文件固定栏目调性（推荐长期使用）
 python3 scripts/generate.py article.md --config torchcursor.config.json
 
 # 生成后跑微信粘贴合规自检
-python3 scripts/generate.py article.md --style all --check
-
-# 生成可平铺的底纹 PNG（仅适用于支持自定义背景上传的编辑器；
-# 实测微信公众号后台没有该入口，此功能对公众号基本无用）
-python3 scripts/make_bg_tile.py --pattern grid --size 40 --theme cardnote --out assets/
+python3 scripts/generate.py article.md --check
 ```
 
 可视化控制台：直接双击 `studio.html`（或拖进浏览器），无需 Python、无需联网。
 
 输出默认写到文稿同级的 `公众号HTML输出/`。生成后告诉用户：打开 HTML → `Cmd+A` 全选 → `Cmd+C` 复制 → 粘贴到公众号后台编辑器 → 用后台预览检查手机端。
 
-## 三种风格
+## 唯一风格：卡片笔记（cardnote）
 
-| style id | 名称 | 气质 | 适用 |
-|---|---|---|---|
-| `cardnote` | 卡片笔记 | 暖米白底 + 头部方框卡片 + 编号分节 + 下划线强调 | 观点长文、认知输出、系列专栏（默认） |
-| `graphite` | 石墨工业 | 冷、硬、克制，无彩色 | 行业分析、深度判断、B 端内容 |
-| `forge` | 熔炉橙 | 暖、有能量，单一强调色 | 观点输出、转化文、活动通知 |
+暖米白底 + 头部方框卡片（圆角图片位）+ 编号分节 + 橙色下划线强调。
+1.5.0 起为**唯一风格**（David 决定砍掉 graphite/forge，聚焦一套视觉）；底纹（横线纸/方格纸/PNG 底图）全部移除。
+
+排版参数（2026-09-12 David 定稿）：正文 80% 黑 `#333333`、标题 90% 黑 `#262626` 字重 700、
+重点标注（下划线/加粗/红字）100% 黑、每个块左右内边距 ≥15px（不贴边）。
 
 完整 CSS 设计源见 `references/styles.md`。
 
@@ -94,11 +85,9 @@ python3 scripts/make_bg_tile.py --pattern grid --size 40 --theme cardnote --out 
 
 | 层 | 做法 | 能否粘贴带入 | 说明 |
 |---|---|---|---|
-| **全文底色** | 牺牲壳双层包裹（底色在第二层 section） | 能（机制推导，持续真机复核） | 编辑器粘贴时只丢最外层容器；第二层底色随头部卡片一同存活。`--page-bg none` 关闭 |
-| **结构底纹** | 用行内边框模拟：`ruled` 每段一条细底线；`grid` 分节区块带边框 + 内部段落底线 | 能 | 微信只清洗背景图和复杂 CSS，边框保留 |
-| **画面底纹** | 真正的方格/横线纸底图，用 `scripts/make_bg_tile.py` 生成可平铺 PNG | 不能 | `make_bg_tile.py` 保留给支持自定义背景上传的第三方编辑器；微信公众号后台没有该入口 |
+| **全文底色** | 牺牲壳双层包裹（底色在第二层 section）+ 每块单独补底色 | 能（真机已验证，持续复核） | 编辑器粘贴时只丢最外层容器；第二层底色随头部卡片一同存活。`--page-bg none` 关闭 |
 
-**不要把 `background-image` 当作可靠的粘贴手段**——它一定被清洗。也不要把样式写在最外层容器上——最外层容器会被丢弃（所以底色必须放在第二层）。
+**不要试图做底纹**：横线纸/方格纸底纹和 PNG 底图（1.4.0 及以前的功能）已按 David 决定移除——背景图一定被清洗，后台也没有背景上传入口。**不要把 `background-image` 当作可靠的粘贴手段**——它一定被清洗。也不要把样式写在最外层容器上——最外层容器会被丢弃（所以底色必须放在第二层）。
 
 **哪些彩色背景能保留**：第二层及更深的元素背景都可以——全文底色层、头部卡片、黑底导语条、金句卡、引用块。
 
@@ -108,13 +97,13 @@ python3 scripts/make_bg_tile.py --pattern grid --size 40 --theme cardnote --out 
 
 | 参数 | 说明 |
 |---|---|
-| `--style` | `cardnote` / `graphite` / `forge` / `all` |
-| `--bg` | `plain` / `ruled` / `grid` |
+| `--style` | 默认 `cardnote`（唯一风格） |
 | `--page-bg` | 全文底色：`auto`（默认，取风格底色）/ `#色值` / `none`（不包裹）。双层牺牲壳包裹，随粘贴保留 |
-| `--page-bg-image` | 全文背景图 URL（可平铺）。微信必清洗，多数后台无背景上传入口，一般无用 |
-| `--accent` `--brand-color` `--bg-color` `--bg-line` `--ink` | 强调色 / 品牌词色 / 页面底色 / 底纹线色 / 金句卡底色 |
+| `--accent` `--brand-color` `--bg-color` `--ink` | 强调色 / 品牌词色 / 页面底色 / 金句卡底色 |
 | `--font-size` `--line-height` | 正文字号（默认 16）、行高（默认 1.9） |
-| `--eyebrow` `--lead` `--footer` `--card-img` | 头部卡片眉题 / 黑底导语条 / 落款 / 图片占位文案 |
+| `--eyebrow` `--lead` `--footer` | 头部卡片眉题 / 黑底导语条 / 落款 |
+| `--card-img-url` | 头部卡片真图 URL（公众号素材库地址）：渲染为固定位置 + 圆角 + 细修饰边框的真图；留空回落圆角占位框 |
+| `--card-img` | 头部卡片图片占位文案（无 URL 时显示） |
 | `--title` `--no-card` `--no-parts` `--plain-h2` | 覆盖标题 / 关头部卡片 / 关编号分节 / 分节不用表格 |
 | `--config` `--out` `--check` | JSON 配置、输出目录、合规自检 |
 
@@ -133,17 +122,22 @@ CLI 优先于配置文件，配置文件优先于内置默认值。完整参数�
 | `> 引用` | 引用块 |
 | `> !文字` | 金句卡（深色底白字） |
 | `*图注*`（独占一行） | 居中灰色图注 |
-| `![说明](路径)` | 图片位置占位（不内嵌图片） |
+| `![说明](https://...)` | 链接为 http(s) 时渲染**真图**：圆角 `<img>`（12px）嵌在带底色的 section 里。链接用公众号素材库地址（mmbiz.qpic.cn/...），粘贴后图片自带圆角、坐在全文底色上 |
+| `![说明](描述)` | 链接非 URL 时为图片位置占位（不内嵌图片） |
 | `- 列表` / `1. 列表` | 无序 / 有序列表 |
 | `\| 表格 \|` | 转成列表输出（微信对表格兼容差） |
 | `---` | 分隔线 |
 
+**分段规则（1.4.0 起）**：每个非空行就是一个段落——不做「空行才分段」的 Markdown 标准合并（真实写作场景里单换行就是想分段，合并会让粘贴后整篇变成一大块）。
+
 段落末尾的中文句号会被去掉（中文排版惯例，避免行尾孤点）。
+
+**给文稿加重点（写稿时就标好，工具负责渲染）**：`==文字==` 橙色下划线、`**文字**` 加粗、`<r>文字</r>` 红字、`<l>文字</l>` 品牌色。每段挑 1 处关键短语标下划线或加粗即可，不要满屏强调。
 
 ## 交付前必须自检
 
 ```bash
-python3 scripts/generate.py article.md --style all --check
+python3 scripts/generate.py article.md --check
 ```
 
 自检覆盖：`<style>` / class / id / 伪元素 / JS / 外链 / 正文一级标题 / 样式重复声明 / 可见元素缺 inline style / 字面转义残留。有任何一项不通过就不要交付。
@@ -156,7 +150,6 @@ python3 scripts/generate.py article.md --style all --check
 | 粘贴后全文底色丢成白色 | 检查粘贴内容是否是双层包裹（外层牺牲壳 + 内层底色层）。1.2.0 起默认双层包裹；若确认包裹仍在仍丢底色，说明微信清洗规则变了——用 `--page-bg none` 退回白底方案，并把现象记录进 `references/wechat-limits.md` |
 | 粘贴后标题/图片出现小方框 | 旧版本用表格做布局会触发此问题（微信把表格转成带边框的表格组件）；用 1.2.0+（inline-block 分栏、无表格）重新生成 |
 | 粘贴后连正文都变纯文字了 | 内容被 `<div>` 包住了——编辑器白名单没有 `div`，整段会被吞。本技能一律用 `<section>`，不要手改成 `div` |
-| 底纹没出现 | 用的是画面底纹而非结构底纹；改用 `--bg ruled/grid`，或生成 PNG 去后台设置 |
 | 出现两个标题 | 文稿里的首个一级标题被渲染进了正文；确认用的是本技能的生成器 |
 | 头部卡片图片位置空着 | 图片是占位框，粘贴后在原位插入图片、删掉占位框 |
 | 分节编号不对 | 标题已自带编号时（`## 01 标题`）沿用原编号，否则按顺序自动编号 |
@@ -164,9 +157,8 @@ python3 scripts/generate.py article.md --style all --check
 
 ## 参考文件
 
-- `studio.html` — 可视化控制台（单文件、零依赖、双击即开），点按钮调风格/底纹/底色并一键复制
+- `studio.html` — 可视化控制台（单文件、零依赖、双击即开），点按钮调底色/字号/头部卡片并一键复制
 - `scripts/generate.py` — 命令行生成器（含 `--check` 合规自检）
-- `scripts/make_bg_tile.py` — 可平铺底纹 PNG 生成（手写 PNG 编码，无 Pillow 依赖）
 - `scripts/check_sync.py` — 校验 `generate.py` 与 `studio.html` 是否漂移（CI 必跑）
 - `scripts/test_studio.js` — 控制台真机验证（jsdom 模拟点按钮，需要 `npm i jsdom`）
 - `references/install.md` — 安装到 Codex / Claude Code / Cursor / Copilot / WorkBuddy / 豆包 等客户端

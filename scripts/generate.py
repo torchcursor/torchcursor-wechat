@@ -31,7 +31,7 @@ import os
 import re
 import sys
 
-VERSION = "1.3.0"
+VERSION = "1.5.0"
 
 SANS = ("-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',"
         "'Hiragino Sans GB','Microsoft YaHei',sans-serif")
@@ -45,7 +45,7 @@ STYLES = {
         "name": "卡片笔记",
         "en": "Notecard",
         "desc": "暖米白底、头部卡片、编号分节、下划线强调。适合观点长文、认知输出。",
-        "text": "#262626",
+        "text": "#333333",
         "bg": "#fafaf4",
         "muted": "#6a6b65",
         "border": "#c0c1bb",
@@ -54,25 +54,25 @@ STYLES = {
         "brand_fallback": "#4a5bc4",
         "ink_fallback": "#1e1f21",
         "marks": {
-            "hl": ('<em style="font-style:normal;font-weight:800;color:#111111;'
+            "hl": ('<em style="font-style:normal;font-weight:800;color:#000000;'
                    'border-bottom:3px solid {a};padding-bottom:1px;">{t}</em>'),
             "red": '<strong style="font-weight:800;color:#c00000;">{t}</strong>',
             "num": '<span style="color:{a};font-weight:800;">{t}</span>',
             "brand": '<span style="color:{b};font-weight:700;">{t}</span>',
         },
         "css": {
-            "h2": "font-size:20px;line-height:1.5;font-weight:850;margin:46px 0 16px;color:#1a1a1a;",
-            "h3": "font-size:17px;line-height:1.5;font-weight:800;margin:30px 0 10px;color:#1a1a1a;",
+            "h2": "font-size:20px;line-height:1.5;font-weight:700;margin:46px 0 16px;color:#262626;",
+            "h3": "font-size:17px;line-height:1.5;font-weight:700;margin:30px 0 10px;color:#262626;",
             "p": "margin:16px 0;line-height:1.9;",
             "blockquote": ("margin:26px 0;padding:16px 18px;border-left:4px solid #3a3a3a;"
-                           "background-color:#f0eee8;color:#1f1f1f;font-weight:700;line-height:1.85;"),
+                           "background-color:#f0eee8;color:#404040;font-weight:700;line-height:1.85;"),
             "callout": ("margin:26px 0;padding:16px 18px;background-color:{ink};"
                         "color:#ffffff;font-weight:700;line-height:1.9;"),
             "ul": "margin:14px 0;padding-left:21px;",
             "ol": "margin:14px 0;padding-left:21px;",
             "li": "margin:8px 0;line-height:1.9;",
-            "strong": "font-weight:800;color:#111111;",
-            "em": "font-style:normal;font-weight:800;color:#111111;border-bottom:3px solid {a};",
+            "strong": "font-weight:800;color:#000000;",
+            "em": "font-style:normal;font-weight:800;color:#000000;border-bottom:3px solid {a};",
             "code": ("font-family:%s;background-color:#f0eee8;color:#1a1a1a;padding:2px 6px;"
                      "border-radius:3px;font-size:14px;" % MONO),
             "pre": ("font-family:%s;background-color:#f0eee8;color:#1a1a1a;padding:14px 16px;"
@@ -80,92 +80,6 @@ STYLES = {
             "hr": "border:none;border-top:1px solid #ddd8cc;margin:36px 0;",
         },
     },
-    # 石墨工业：无彩色系，靠字重与留白建立层级
-    "graphite": {
-        "name": "石墨工业",
-        "en": "Graphite",
-        "desc": "冷、硬、克制，无彩色。适合行业分析、深度判断、B 端内容。",
-        "text": "#26282b",
-        "bg": "#ffffff",
-        "muted": "#6b7075",
-        "border": "#dcdee0",
-        "line": "#e8eaec",
-        "accent_fallback": "#111315",
-        "brand_fallback": "#111315",
-        "ink_fallback": "#111315",
-        "marks": {
-            "hl": '<strong style="font-weight:850;color:#0d0f11;">{t}</strong>',
-            "red": '<strong style="font-weight:850;color:#0d0f11;">{t}</strong>',
-            "num": "{t}",
-            "brand": '<strong style="font-weight:850;color:#0d0f11;">{t}</strong>',
-        },
-        "css": {
-            "h2": ("font-size:19px;line-height:1.46;font-weight:800;margin:44px 0 16px;color:#111315;"
-                   "padding:14px 0 2px 13px;border-left:5px solid #111315;border-top:1px solid #dcdee0;"),
-            "h3": "font-size:17px;line-height:1.5;font-weight:750;margin:30px 0 10px;color:#33373b;",
-            "p": "margin:13px 0;line-height:1.86;",
-            "blockquote": ("margin:22px 0;padding:14px 16px;border-left:3px solid #6b7075;"
-                           "background-color:#f4f5f6;color:#4a4f54;"),
-            "callout": ("margin:22px 0;padding:14px 16px;border-left:3px solid #6b7075;"
-                        "background-color:#f4f5f6;color:#111315;font-weight:800;"),
-            "ul": "margin:13px 0;padding-left:21px;",
-            "ol": "margin:13px 0;padding-left:21px;",
-            "li": "margin:8px 0;line-height:1.86;",
-            "strong": "font-weight:850;color:#0d0f11;",
-            "em": "font-style:normal;background-color:#eceeef;padding:1px 3px;",
-            "code": ("font-family:%s;background-color:#f0f1f2;color:#1a1d1f;padding:2px 6px;"
-                     "border-radius:3px;font-size:14px;" % MONO),
-            "pre": ("font-family:%s;background-color:#f0f1f2;color:#1a1d1f;padding:14px 16px;"
-                    "font-size:14px;line-height:1.6;overflow:auto;" % MONO),
-            "hr": "border:none;border-top:1px solid #dcdee0;margin:34px 0;",
-        },
-    },
-    # 熔炉橙：橙红为唯一强调色，底色保持中性白
-    "forge": {
-        "name": "熔炉橙",
-        "en": "Forge",
-        "desc": "暖、有能量、有警示感，单一强调色。适合观点输出、转化文、活动通知。",
-        "text": "#2a2724",
-        "bg": "#ffffff",
-        "muted": "#7a6a5e",
-        "border": "#e7d8cb",
-        "line": "#f0e4da",
-        "accent_fallback": "#c2410c",
-        "brand_fallback": "#9a3412",
-        "ink_fallback": "#8f2313",
-        "marks": {
-            "hl": '<strong style="font-weight:850;color:{a};">{t}</strong>',
-            "red": '<strong style="font-weight:850;color:{a};">{t}</strong>',
-            "num": "{t}",
-            "brand": '<strong style="font-weight:850;color:{b};">{t}</strong>',
-        },
-        "css": {
-            "h2": ("font-size:19px;line-height:1.46;font-weight:800;margin:44px 0 16px;color:#1c1917;"
-                   "padding:13px 14px;background-color:#fdf3ec;border-left:5px solid {a};"),
-            "h3": ("font-size:17px;line-height:1.5;font-weight:800;margin:30px 0 10px;color:#9a3412;"
-                   "padding-bottom:6px;border-bottom:1px dotted #e0c4b1;"),
-            "p": "margin:13px 0;line-height:1.86;",
-            "blockquote": ("margin:22px 0;padding:14px 16px;border-left:4px solid {a};"
-                           "background-color:#fdf3ec;color:#5a3a28;"),
-            "callout": "margin:22px 0;padding:14px 16px;background-color:#8f2313;color:#ffffff;font-weight:800;",
-            "ul": "margin:13px 0;padding-left:21px;",
-            "ol": "margin:13px 0;padding-left:21px;",
-            "li": "margin:8px 0;line-height:1.86;",
-            "strong": "font-weight:850;color:{a};",
-            "em": "font-style:normal;color:#9a3412;background-color:#fdf3ec;padding:1px 3px;",
-            "code": ("font-family:%s;background-color:#fdf3ec;color:#9a3412;padding:2px 6px;"
-                     "border-radius:3px;font-size:14px;" % MONO),
-            "pre": ("font-family:%s;background-color:#fdf3ec;color:#7c2d12;padding:14px 16px;"
-                    "font-size:14px;line-height:1.6;overflow:auto;" % MONO),
-            "hr": "border:none;height:2px;background-color:{a};margin:34px 0;width:56%;",
-        },
-    },
-}
-
-BG_MODES = {
-    "plain": "纯色底（最稳，粘贴后不变形）",
-    "ruled": "横线纸：每段一条细底线，模拟笔记本横线（行内边框，粘贴可保留）",
-    "grid": "方格纸：分节区块带边框、内部段落带底线，模拟方格分栏（行内边框，粘贴可保留）",
 }
 
 DEFAULT_CARD = {
@@ -173,6 +87,7 @@ DEFAULT_CARD = {
     "lead": "",
     "footer": "",
     "img": "[ 图片占位 ]",
+    "img_url": "",
 }
 
 # ---------------------------------------------------------------- Markdown 解析
@@ -223,36 +138,30 @@ def inline(text, s, accent, brand):
 
 
 def parse_markdown(md):
-    """→ (title, blocks)。blocks 元素为 (kind, payload)。"""
+    """→ (title, blocks)。blocks 元素为 (kind, payload)。
+
+    分段规则（2026-09-12 按 David 实测反馈调整）：**每个非空行就是一个段落**，
+    不做「空行才分段」的 Markdown 标准合并——真实写作场景里单换行就是想分段，
+    合并成一段会让粘贴后整篇变成一大块。
+    """
     lines = md.replace("\r\n", "\n").split("\n")
     title, blocks, i = None, [], 0
-    buf = []
-
-    def flush_para():
-        if buf:
-            text = _strip_tail_period(" ".join(buf))
-            if text:
-                blocks.append(("p", text))
-            buf.clear()
 
     while i < len(lines):
         raw = lines[i]
         line = raw.strip()
 
         if not line:
-            flush_para()
             i += 1
             continue
 
         if line == "---" or line == "***":
-            flush_para()
             blocks.append(("hr", ""))
             i += 1
             continue
 
         m = re.match(r"^(#{1,6})\s+(.*)$", line)
         if m:
-            flush_para()
             level, text = len(m.group(1)), m.group(2).strip()
             if level == 1 and title is None:
                 title = text                      # 首个 H1 → <title>，不进正文
@@ -266,7 +175,6 @@ def parse_markdown(md):
             continue
 
         if line.startswith(">"):
-            flush_para()
             quote = []
             while i < len(lines) and lines[i].strip().startswith(">"):
                 quote.append(lines[i].strip().lstrip(">").strip())
@@ -280,20 +188,20 @@ def parse_markdown(md):
 
         m = re.match(r"^\*([^*].*?)\*$", line)       # *图注文字* → 居中灰色图注
         if m:
-            flush_para()
             blocks.append(("figcaption", m.group(1).strip()))
             i += 1
             continue
 
         if line.startswith("!["):
-            flush_para()
-            cap = re.match(r"^!\[(.*?)\]\((.*?)\)", line)
-            blocks.append(("imgph", (cap.group(1) or cap.group(2) or "图片").strip()))
+            cap = re.match(r"^!\[(.*?)\]\((.*?)\)\s*$", line)
+            if cap and cap.group(2).strip().lower().startswith(("http://", "https://")):
+                blocks.append(("img", (cap.group(1).strip(), cap.group(2).strip())))
+            else:
+                blocks.append(("imgph", (cap.group(1) if cap else "") or "图片"))
             i += 1
             continue
 
         if re.match(r"^([-*+])\s+", line):
-            flush_para()
             items = []
             while i < len(lines) and re.match(r"^([-*+])\s+", lines[i].strip()):
                 items.append(re.sub(r"^([-*+])\s+", "", lines[i].strip()))
@@ -302,7 +210,6 @@ def parse_markdown(md):
             continue
 
         if re.match(r"^\d+[.)]\s+", line):
-            flush_para()
             items = []
             while i < len(lines) and re.match(r"^\d+[.)]\s+", lines[i].strip()):
                 items.append(re.sub(r"^\d+[.)]\s+", "", lines[i].strip()))
@@ -311,7 +218,6 @@ def parse_markdown(md):
             continue
 
         if line.startswith("|") and line.endswith("|"):
-            flush_para()
             rows = []
             while i < len(lines) and lines[i].strip().startswith("|"):
                 cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
@@ -327,10 +233,11 @@ def parse_markdown(md):
                 blocks.append(("li_flat", pairs))
             continue
 
-        buf.append(line)
+        text = _strip_tail_period(line)
+        if text:
+            blocks.append(("p", text))
         i += 1
 
-    flush_para()
     return title, blocks
 
 
@@ -376,8 +283,13 @@ def blockify(style, bg):
     （外边距）不属于任何块——间隙露白。margin 不吃元素背景，padding 吃。
     所以：把垂直 margin 折半转成 padding（折半是因为相邻块的 padding 会
     相加，而原来的 margin 会塌缩），并给没有自己底色的块补上全文底色。
-    已有 background-color 的元素（引用块/金句卡/forge 标题条）保留原色。
+    已有 background-color 的元素（引用块/金句卡）保留原色。
+
+    v1.5.0：所有块强制左右内边距 ≥15px（David 实测反馈：正文贴边太满）。
+    微信可能剥掉底色层 wrapper 的 padding，所以左右留白直接写在每个块上，
+    保证任何情况下文字离底色边界至少一个字的距离。
     """
+    SIDE = 15                          # 左右内边距下限（px），约一个字宽
     has_bg = "background-color" in style
     margin, padding = None, None
     keep = []
@@ -417,7 +329,7 @@ def blockify(style, bg):
         else:
             pt, pr, pb, pl = (_px_int(x) for x in t[:4])
     out = ["margin:0",
-           "padding:%dpx %dpx %dpx %dpx" % (mt + pt, pr, mb + pb, pl)]
+           "padding:%dpx %dpx %dpx %dpx" % (mt + pt, max(pr, SIDE), mb + pb, max(pl, SIDE))]
     if not has_bg:
         out.append("background-color:%s" % bg)
     out += keep
@@ -436,16 +348,35 @@ def part_header(num, sec_title, s, accent, muted, bg, tight=False):
     return [
         '  <p style="%s">%s&nbsp;<span style="font-size:10px;'
         'font-weight:600;color:%s;letter-spacing:2px;">PART</span></p>'
-        % (blockify('font-family:%s;font-size:24px;line-height:1.2;font-weight:850;'
-                    'color:#1a1a1a;margin:%s 0 0;' % (SANS, mt), bg),
+        % (blockify('font-family:%s;font-size:24px;line-height:1.2;font-weight:700;'
+                    'color:#262626;margin:%s 0 0;' % (SANS, mt), bg),
            num, muted),
         '  <p style="%s">%s</p>'
-        % (blockify('font-family:%s;font-size:21px;line-height:1.5;font-weight:850;'
-                    'color:#1a1a1a;margin:8px 0 0;' % SANS, bg), sec_title),
+        % (blockify('font-family:%s;font-size:21px;line-height:1.5;font-weight:700;'
+                    'color:#262626;margin:8px 0 0;' % SANS, bg), sec_title),
         '  <p style="%s">NOTES</p>'
         % (blockify('font-family:%s;font-size:10px;line-height:1.5;color:%s;'
                     'letter-spacing:3px;margin:4px 0 %s;' % (SANS, muted, mb), bg),),
     ]
+
+
+def _card_visual(card, border, muted):
+    """头部卡片右侧图片区（2026-09-12 按 David 反馈重做，对齐参考样式）：
+
+    - 有 img_url → 真图：圆角 12px + 一圈细修饰边框（参考样式如此）；
+    - 无 img_url → 圆角占位框（同样式，方便粘贴后原位替换成图片）。
+    用 <span>/<img> 行内元素而不是 <p>：p 在分栏里会带出多余段间距。
+    """
+    url = (card.get("img_url") or "").strip()
+    if url:
+        return ('<img src="%s" alt="" style="display:inline-block;width:100%%;'
+                'border-radius:12px;border:1px solid %s;box-sizing:border-box;'
+                'vertical-align:middle;">'
+                % (_html.escape(url, quote=True), border))
+    return ('<span style="display:inline-block;width:100%%;font-family:%s;font-size:12px;'
+            'line-height:1.7;color:%s;border:1px solid %s;border-radius:12px;'
+            'padding:26px 8px;box-sizing:border-box;">%s</span>'
+            % (SANS, muted, border, _html.escape(card.get("img") or "[ 图片 ]")))
 
 
 def head_card(s, opts, accent, brand, muted, border):
@@ -470,14 +401,13 @@ def head_card(s, opts, accent, brand, muted, border):
                  % (SANS, muted, _html.escape(card["eyebrow"])))
     p.append(
         '  <section style="display:inline-block;width:62%%;vertical-align:middle;">'
-        '<p style="font-family:%s;font-size:24px;line-height:1.45;font-weight:850;'
-        'color:#1a1a1a;margin:0;padding:16px 14px 0 18px;">%s</p>'
+        '<p style="font-family:%s;font-size:24px;line-height:1.45;font-weight:700;'
+        'color:#262626;margin:0;padding:16px 14px 0 18px;">%s</p>'
         '</section>'
         '<section style="display:inline-block;width:38%%;vertical-align:middle;">'
-        '<p style="font-family:%s;font-size:12px;line-height:1.7;color:%s;'
-        'text-align:center;margin:0;padding:16px 18px 0 0;">%s</p>'
+        '<p style="text-align:center;margin:0;padding:0 18px 0 0;">%s</p>'
         '</section>'
-        % (SANS, title_html, SANS, muted, _html.escape(card["img"])))
+        % (SANS, title_html, _card_visual(card, border, muted)))
     if card["footer"]:
         p.append('  <p style="font-family:%s;font-size:11px;line-height:1.6;color:%s;'
                  'letter-spacing:2px;margin:0;padding:14px 18px 16px;">%s</p>'
@@ -503,8 +433,7 @@ def render_block(kind, payload, s, opts, accent, brand, muted, line, para_extra)
             else:
                 opts["_sec"] = opts.get("_sec", 0) + 1
                 num, sec = "%02d" % opts["_sec"], payload
-            return part_header(num, _html.escape(sec), s, accent, muted, bg,
-                               tight=(opts["bg"] == "grid"))
+            return part_header(num, _html.escape(sec), s, accent, muted, bg)
         return ['  <h2 style="%s">%s</h2>'
                 % (blockify(_st(s, "h2", accent, brand, fs, lh), bg),
                    _html.escape(payload))]
@@ -531,6 +460,19 @@ def render_block(kind, payload, s, opts, accent, brand, muted, line, para_extra)
 
     if kind == "hr":
         return ['  <hr style="%s">' % blockify(_st(s, "hr", accent, brand, fs, lh), bg)]
+
+    if kind == "img":
+        # 真图：圆角 <img> 直接嵌进底色 section（图片 URL 用公众号素材库地址，
+        # 粘贴时图片自带圆角、坐在全文底色上，不再是一块突兀的白）
+        alt, url = payload
+        return [
+            '  <section style="%s">'
+            '<img src="%s" alt="%s" style="display:block;width:100%%;'
+            'border-radius:12px;">'
+            '</section>'
+            % (blockify('margin:24px 0;', bg),
+               _html.escape(url, quote=True), _html.escape(alt)),
+        ]
 
     if kind == "imgph":
         # 图片占位不带边框：参考成品里图片是没有框的，虚线框粘过去会被当成小方框
@@ -571,16 +513,11 @@ def render(style_id, s, blocks, opts):
     brand = opts["brand_color"] or s["brand_fallback"]
     muted = s["muted"]
     border = s["border"]
-    line = opts["bg_line"] or s["line"]
+    line = s["line"]
     opts["ink"] = opts["ink"] or s["ink_fallback"]
 
     s = dict(s)
     s["tokens"] = {"a": accent, "b": brand, "ink": opts["ink"]}
-
-    para_extra = ""
-    if opts["bg"] in ("ruled", "grid"):
-        # 横线纸 / 方格纸都靠行内底边线模拟——微信会清洗 background-image，边框不会
-        para_extra = "padding-bottom:12px;border-bottom:1px solid %s;" % line
 
     parts = ["<!doctype html>", '<html lang="zh-CN">', "<head>",
              '  <meta charset="utf-8">',
@@ -605,10 +542,7 @@ def render(style_id, s, blocks, opts):
         opts["_page_bg"] = page_bg
     wrap_open = False
     if page_bg:
-        wrap_style = "background-color:%s;padding:28px 22px;" % page_bg
-        if opts.get("page_bg_image"):
-            wrap_style += ("background-image:url('%s');background-repeat:repeat;"
-                           "background-position:top left;" % opts["page_bg_image"])
+        wrap_style = "background-color:%s;padding:24px 16px;" % page_bg
         parts.append("<section>")              # 牺牲壳：粘贴时会被编辑器丢弃
         parts.append("<section style=\"%s\">" % wrap_style)
         wrap_open = True
@@ -617,28 +551,8 @@ def render(style_id, s, blocks, opts):
         parts += head_card(s, opts, accent, brand, muted, border)
         opts["_sec"] = 0
 
-    # 分组：分节区块（grid 模式按组套边框）
-    groups, cur = [], []
     for kind, payload in blocks:
-        if kind == "h2" and cur:
-            groups.append(cur)
-            cur = []
-        cur.append((kind, payload))
-    if cur:
-        groups.append(cur)
-
-    for group in groups:
-        wrap = opts["bg"] == "grid"
-        if wrap:
-            # grid 分节边框同样做防断裂处理：margin 转 padding + 补底色
-            parts.append('<section style="%s">'
-                         % blockify('border:1px solid %s;border-radius:6px;'
-                                    'padding:2px 16px 14px;margin:26px 0;' % line,
-                                    opts["_page_bg"]))
-        for kind, payload in group:
-            parts += render_block(kind, payload, s, opts, accent, brand, muted, line, para_extra)
-        if wrap:
-            parts.append('</section>')
+        parts += render_block(kind, payload, s, opts, accent, brand, muted, line, "")
 
     if wrap_open:
         parts.append('</section>')
@@ -694,13 +608,10 @@ def load_config(path):
 def build_opts(args):
     o = {
         "style": "cardnote",
-        "bg": "plain",
         "accent": "",
         "brand_color": "",
         "bg_color": "",
-        "bg_line": "",
         "page_bg": "auto",
-        "page_bg_image": "",
         "ink": "",
         "font_size": 16,
         "line_height": 1.9,
@@ -717,8 +628,8 @@ def build_opts(args):
                 o[key] = cfg[key]
         o["card"] = dict(DEFAULT_CARD, **(cfg.get("card") or {}))
 
-    for key in ("style", "bg", "accent", "brand_color", "bg_color", "bg_line", "ink",
-                "page_bg", "page_bg_image", "font_size", "line_height", "title", "out"):
+    for key in ("style", "accent", "brand_color", "bg_color", "ink",
+                "page_bg", "font_size", "line_height", "title", "out"):
         val = getattr(args, key, None)
         if val not in (None, ""):
             o[key] = val
@@ -729,7 +640,7 @@ def build_opts(args):
     if getattr(args, "plain_h2", False):
         o["prefer_plain_h2"] = True
     if args.eyebrow is not None or args.lead is not None or args.footer is not None \
-            or args.card_img is not None:
+            or args.card_img is not None or args.card_img_url is not None:
         card = dict(o["card"] or DEFAULT_CARD)
         if args.eyebrow is not None:
             card["eyebrow"] = args.eyebrow
@@ -739,6 +650,8 @@ def build_opts(args):
             card["footer"] = args.footer
         if args.card_img is not None:
             card["img"] = args.card_img
+        if args.card_img_url is not None:
+            card["img_url"] = args.card_img_url
         o["card"] = card
     if o["card"] is None:
         o["card"] = dict(DEFAULT_CARD)
@@ -750,19 +663,15 @@ def main(argv=None):
         prog="generate.py",
         description="把 Markdown 转成可粘贴进微信公众号后台的 HTML（torchcursor-wechat v%s）" % VERSION)
     ap.add_argument("input", nargs="?", help="Markdown 文件路径；省略则从 stdin 读取")
-    ap.add_argument("--style", choices=list(STYLES) + ["all"], help="风格，all 表示全部生成")
-    ap.add_argument("--bg", choices=list(BG_MODES), help="底纹模式（默认 plain）")
+    ap.add_argument("--style", choices=list(STYLES) + ["all"], default="cardnote",
+                    help="风格（默认 cardnote 卡片笔记）")
     ap.add_argument("--accent", help="强调色，如 #e0a43c")
     ap.add_argument("--brand-color", dest="brand_color", help="品牌词颜色，如 #4a5bc4")
     ap.add_argument("--bg-color", dest="bg_color", help="页面底色，如 #fafaf4")
-    ap.add_argument("--bg-line", dest="bg_line", help="底纹线色，如 #e6e3d8")
     ap.add_argument("--page-bg", dest="page_bg",
                     help="全文底色：auto（默认，取风格底色）/ #色值 / none（不包裹）。"
                          "v1.2.0 起用双层牺牲壳包裹：外层空壳被编辑器丢弃，"
                          "第二层底色保留（机制依据 2026-09-11 三轮真机实测）")
-    ap.add_argument("--page-bg-image", dest="page_bg_image",
-                    help="全文背景图 URL（可平铺，实验性）。微信公众号会清洗 background-image，"
-                         "且多数后台没有「背景上传」入口，此参数一般无用")
     ap.add_argument("--ink", help="金句卡/导语条底色，如 #1e1f21")
     ap.add_argument("--font-size", dest="font_size", type=int, help="正文字号 px（默认 16）")
     ap.add_argument("--line-height", dest="line_height", type=float, help="正文行高（默认 1.9）")
@@ -771,6 +680,9 @@ def main(argv=None):
     ap.add_argument("--lead", help="头部卡片黑底导语条文案")
     ap.add_argument("--footer", help="头部卡片落款")
     ap.add_argument("--card-img", dest="card_img", help="头部卡片图片占位文案")
+    ap.add_argument("--card-img-url", dest="card_img_url",
+                    help="头部卡片真实图片 URL（建议公众号素材库地址 mmbiz.qpic.cn/...）。"
+                         "给了 URL 就渲染真图（圆角+细边框），忽略 --card-img 占位文案")
     ap.add_argument("--no-card", action="store_true", help="不渲染头部卡片")
     ap.add_argument("--no-parts", action="store_true", help="不渲染编号分节，用普通二级标题")
     ap.add_argument("--plain-h2", action="store_true", help="分节标题不用表格两列布局")
@@ -804,13 +716,13 @@ def main(argv=None):
         o["card"] = opts["card"] if sid == "cardnote" else False
         o["_sec"] = 0
         text = render(sid, s, blocks, o)
-        fname = "%s_%s_%s.html" % (stem, sid, opts["bg"])
+        fname = "%s_%s.html" % (stem, sid)
         with open(os.path.join(out_dir, fname), "w", encoding="utf-8") as f:
             f.write(text)
         if args.check:
             all_problems[fname] = self_check(text)
         results.append((sid, s, fname))
-        print("生成 %s  %s（%s / %s）" % (fname, s["name"], sid, BG_MODES[opts["bg"]].split("：")[0]))
+        print("生成 %s  %s" % (fname, s["name"]))
 
     if len(results) > 1:
         cards = "\n".join(
