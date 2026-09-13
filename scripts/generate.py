@@ -31,7 +31,7 @@ import os
 import re
 import sys
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 
 SANS = ("-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',"
         "'Hiragino Sans GB','Microsoft YaHei',sans-serif")
@@ -361,32 +361,37 @@ def part_header(num, sec_title, s, accent, muted, bg, tight=False):
 
 
 def _card_visual(card, border, muted):
-    """头部卡片右侧图片区（2026-09-12 按 David 反馈重做，对齐参考样式）：
+    """头部卡片右侧图片（v1.6.0 按 David 真机反馈重做）：
 
-    - 有 img_url → 真图：圆角 12px + 一圈细修饰边框（参考样式如此）；
-    - 无 img_url → 圆角占位框（同样式，方便粘贴后原位替换成图片）。
-    用 <span>/<img> 行内元素而不是 <p>：p 在分栏里会带出多余段间距。
+    v1.4/v1.5 把图片放在 38% 宽的 inline-block 分栏里、width:100%——微信编辑器
+    粘贴时洗掉分栏的百分比宽度，图片跟着塌成一点点（"无论多大图都只有一点点"）；
+    占位框靠文字撑开，删掉文字元素变空，边框也没了。
+
+    对策（借鉴 md2wechat：图片尺寸不依赖父容器百分比宽度，用 max-width 而非
+    width:100%）：
+    - 固定像素宽 132px + float:right：px 宽度微信洗不掉，位置自动靠右，任何
+      尺寸的原图都渲染成同样大小的圆角缩略图；
+    - 真图 height:auto 保比例；占位框固定 132x88 空盒，删光文字盒子仍在。
     """
     url = (card.get("img_url") or "").strip()
+    common = ('float:right;width:132px;border-radius:12px;border:1px solid %s;'
+              'box-sizing:border-box;margin:2px 0 8px 14px;' % border)
     if url:
-        return ('<img src="%s" alt="" style="display:inline-block;width:100%%;'
-                'border-radius:12px;border:1px solid %s;box-sizing:border-box;'
-                'vertical-align:middle;">'
-                % (_html.escape(url, quote=True), border))
-    return ('<span style="display:inline-block;width:100%%;font-family:%s;font-size:12px;'
-            'line-height:1.7;color:%s;border:1px solid %s;border-radius:12px;'
-            'padding:26px 8px;box-sizing:border-box;">%s</span>'
-            % (SANS, muted, border, _html.escape(card.get("img") or "[ 图片 ]")))
+        return ('<img src="%s" alt="" style="%sheight:auto;max-width:100%%;">'
+                % (_html.escape(url, quote=True), common))
+    return ('<span style="%sheight:88px;line-height:88px;text-align:center;'
+            'font-family:%s;font-size:12px;color:%s;">%s</span>'
+            % (common, SANS, muted, _html.escape(card.get("img") or "[ 图片占位 ]")))
 
 
 def head_card(s, opts, accent, brand, muted, border):
-    """头部方框卡片：眉题 → 左标题右图 → 落款 → 黑底导语条（贴边框内侧贴底）。
+    """头部方框卡片：眉题 → 右浮图 + 左标题 → 清除浮动 → 落款 → 黑底导语条。
 
-    左右分栏不用 <table>：微信会把粘贴进来的表格转成自带边框的表格组件
-    （实测 2026-09-11：标题、图片全被框上方框）。改用两个 display:inline-block
-    的并列 <section>——display 被清洗也只是退化为上下堆叠，不会出边框。
-    两个分栏必须写在同一行（之间不能有换行空白），否则 62%+38% 加上空白节点
-    会被挤到两行。
+    左右分栏不用 <table>（微信转成带边框表格组件），v1.4 起也不用 inline-block
+    百分比分栏（微信粘贴洗掉百分比宽度：图片塌小、分栏堆叠位置错乱，实测
+    2026-09-13）。改用单列流式 + 图片 float:right 固定像素宽：文字自然绕排在
+    图片左侧，分栏洗不洗掉都不影响布局；末尾放一个 clear:both 空段收住浮动，
+    防止落款/导语条绕到图片旁边。
     """
     ink = opts["ink"]
     card = opts["card"]
@@ -400,14 +405,11 @@ def head_card(s, opts, accent, brand, muted, border):
                  'letter-spacing:3px;margin:0;padding:18px 18px 0;">%s</p>'
                  % (SANS, muted, _html.escape(card["eyebrow"])))
     p.append(
-        '  <section style="display:inline-block;width:62%%;vertical-align:middle;">'
+        '  <section style="margin:0;padding:16px 18px 0;">%s'
         '<p style="font-family:%s;font-size:24px;line-height:1.45;font-weight:700;'
-        'color:#262626;margin:0;padding:16px 14px 0 18px;">%s</p>'
-        '</section>'
-        '<section style="display:inline-block;width:38%%;vertical-align:middle;">'
-        '<p style="text-align:center;margin:0;padding:0 18px 0 0;">%s</p>'
-        '</section>'
-        % (SANS, title_html, _card_visual(card, border, muted)))
+        'color:#262626;margin:0;">%s</p></section>'
+        '  <section style="clear:both;height:0;line-height:0;font-size:0;">&nbsp;</section>'
+        % (_card_visual(card, border, muted), SANS, title_html))
     if card["footer"]:
         p.append('  <p style="font-family:%s;font-size:11px;line-height:1.6;color:%s;'
                  'letter-spacing:2px;margin:0;padding:14px 18px 16px;">%s</p>'
@@ -463,12 +465,14 @@ def render_block(kind, payload, s, opts, accent, brand, muted, line, para_extra)
 
     if kind == "img":
         # 真图：圆角 <img> 直接嵌进底色 section（图片 URL 用公众号素材库地址，
-        # 粘贴时图片自带圆角、坐在全文底色上，不再是一块突兀的白）
+        # 粘贴时图片自带圆角、坐在全文底色上，不再是一块突兀的白）。
+        # max-width 而非 width:100%（md2wechat 同款写法）：百分比 width 被微信
+        # 洗掉时图片塌小，max-width 洗掉也只是回落自然尺寸，不会变小。
         alt, url = payload
         return [
             '  <section style="%s">'
-            '<img src="%s" alt="%s" style="display:block;width:100%%;'
-            'border-radius:12px;">'
+            '<img src="%s" alt="%s" style="display:block;max-width:100%%;'
+            'height:auto;border-radius:12px;">'
             '</section>'
             % (blockify('margin:24px 0;', bg),
                _html.escape(url, quote=True), _html.escape(alt)),

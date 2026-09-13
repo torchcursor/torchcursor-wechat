@@ -397,24 +397,28 @@ function partHeader(num, secTitle, s, tk, bg) {
 }
 
 function cardVisual(card, s) {
-  /* 头部卡片右侧图片区：有 URL → 真图（圆角+细修饰边框，对齐参考样式）；
-     无 URL → 圆角占位框。行内元素，不带段间距。 */
+  /* v1.6.0：固定像素宽 132px + float:right——不依赖父容器百分比宽度
+     （微信粘贴会洗掉分栏的百分比宽度，导致图片塌小、位置错乱，实测）。
+     真图 height:auto 保比例；占位框固定 132x88 空盒，删光文字盒子仍在。 */
   var url = (card.imgUrl || "").trim();
+  var common = 'float:right;width:132px;border-radius:12px;border:1px solid ' + s.border + ';box-sizing:border-box;margin:2px 0 8px 14px;';
   if (url) {
-    return '<img src="' + esc(url) + '" alt="" style="display:inline-block;width:100%;border-radius:12px;border:1px solid ' + s.border + ';box-sizing:border-box;vertical-align:middle;">';
+    return '<img src="' + esc(url) + '" alt="" style="' + common + 'height:auto;max-width:100%;">';
   }
-  return '<span style="display:inline-block;width:100%;font-family:' + SANS + ';font-size:12px;line-height:1.7;color:' + s.muted + ';border:1px solid ' + s.border + ';border-radius:12px;padding:26px 8px;box-sizing:border-box;">' + esc(card.img || "[ 图片 ]") + '</span>';
+  return '<span style="' + common + 'height:88px;line-height:88px;text-align:center;font-family:' + SANS + ';font-size:12px;color:' + s.muted + ';">' + esc(card.img || "[ 图片占位 ]") + '</span>';
 }
 
 function headCard(s, o, tk) {
-  /* 左右分栏不用 <table>：微信会把粘贴进来的表格转成带边框的表格组件（实测）。
-     两个 inline-block 分栏必须写在同一行，避免空白节点把 62%+38% 挤成两行。 */
+  /* 单列流式 + 图片 float:right（v1.6.0）：不用 <table>（微信转带边框表格组件），
+     也不用 inline-block 百分比分栏（微信粘贴洗掉百分比宽度：图片塌小、分栏堆叠，
+     实测 2026-09-13）。末尾 clear:both 空段收住浮动，落款/导语条不会绕到图旁。 */
   var card = o.cardCfg, out = [];
   out.push('<section style="margin:0;border:1px solid ' + s.border + ';border-radius:6px;background-color:' + o.pageBgColor + ';padding:0;">');
   if (card.eyebrow) {
     out.push('  <p style="font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:3px;margin:0;padding:18px 18px 0;">' + esc(card.eyebrow) + '</p>');
   }
-  out.push('  <section style="display:inline-block;width:62%;vertical-align:middle;"><p style="font-family:' + SANS + ';font-size:24px;line-height:1.45;font-weight:700;color:#262626;margin:0;padding:16px 14px 0 18px;">' + inline(o.title, s, tk, o) + '</p></section><section style="display:inline-block;width:38%;vertical-align:middle;"><p style="text-align:center;margin:0;padding:0 18px 0 0;">' + cardVisual(card, s) + '</p></section>');
+  out.push('  <section style="margin:0;padding:16px 18px 0;">' + cardVisual(card, s) + '<p style="font-family:' + SANS + ';font-size:24px;line-height:1.45;font-weight:700;color:#262626;margin:0;">' + inline(o.title, s, tk, o) + '</p></section>');
+  out.push('  <section style="clear:both;height:0;line-height:0;font-size:0;">&nbsp;</section>');
   if (card.footer) {
     out.push('  <p style="font-family:' + SANS + ';font-size:11px;line-height:1.6;color:' + s.muted + ';letter-spacing:2px;margin:0;padding:14px 18px 16px;">' + esc(card.footer) + '</p>');
   }
@@ -454,8 +458,9 @@ function renderBlock(kind, payload, s, o, tk, paraExtra, secRef) {
     return ['  <hr style="' + blockify(st(s, "hr", tk, fs, lh), bg) + '">'];
   }
   if (kind === "img") {
-    /* 真图：圆角 <img> 嵌进带底色的 section（URL 用公众号素材库地址） */
-    return ['  <section style="' + blockify("margin:24px 0;", bg) + '"><img src="' + esc(payload[1]) + '" alt="' + esc(payload[0]) + '" style="display:block;width:100%;border-radius:12px;"></section>'];
+    /* 真图：圆角 <img> 嵌进带底色的 section（URL 用公众号素材库地址）。
+       max-width 而非 width:100%：百分比 width 被微信洗掉时图片塌小（md2wechat 同款写法）。 */
+    return ['  <section style="' + blockify("margin:24px 0;", bg) + '"><img src="' + esc(payload[1]) + '" alt="' + esc(payload[0]) + '" style="display:block;max-width:100%;height:auto;border-radius:12px;"></section>'];
   }
   if (kind === "imgph") {
     /* 图片占位不带边框：参考成品里图片没有框，虚线框粘过去会被当成小方框 */
